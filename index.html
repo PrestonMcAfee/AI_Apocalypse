@@ -1,155 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Apocalypse: 50% Drawdown Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; color: #111; margin: 40px auto; max-width: 960px; padding: 0 20px; line-height: 1.5; }
+        h2 { margin-bottom: 4px; font-weight: 700; }
+        p.sub { color: #555; margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
+        .chart-card { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-bottom: 35px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+        th, td { text-align: right; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
+        th:first-child, td:first-child { text-align: left; }
+        th { background: #fafafa; font-weight: 600; color: #333; }
+        tr:hover { background: #fdfdfd; }
+        .highlight { font-weight: 600; color: #b91c1c; }
+        footer { margin-top: 35px; font-size: 0.8rem; color: #777; border-top: 1px solid #eee; padding-top: 12px; }
+        a { color: #2563eb; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h2>AI Apocalypse: Probability of 50% Drawdown (Late 2028)</h2>
+    <p class="sub">Market-implied risk-neutral distribution anchored to Dec 15, 2028 via liquid ATM LEAPS volatility and skew modeling.</p>
 
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI Apocalypse: 50% Drawdown Tracker</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #ffffff; color: #111; margin: 40px auto; max-width: 960px; padding: 0 20px; line-height: 1.5; }
-            h2 { margin-bottom: 4px; font-weight: 700; }
-            p.sub { color: #555; margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
-            .chart-card { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-bottom: 35px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
-            th, td { text-align: right; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
-            th:first-child, td:first-child { text-align: left; }
-            th { background: #fafafa; font-weight: 600; color: #333; }
-            tr:hover { background: #fdfdfd; }
-            .highlight { font-weight: 600; color: #b91c1c; }
-            footer { margin-top: 35px; font-size: 0.8rem; color: #777; border-top: 1px solid #eee; padding-top: 12px; }
-            a { color: #2563eb; text-decoration: none; }
-            a:hover { text-decoration: underline; }
-        </style>
-    </head>
-    <body>
-        <h2>AI Apocalypse: Probability of 50% Drawdown (Late 2028)</h2>
-        <p class="sub">Market-implied risk-neutral distribution extracted from LEAPS chains via Breeden–Litzenberger (1978).</p>
+    <div class="chart-card">
+        <canvas id="historyChart" style="max-height: 380px;"></canvas>
+    </div>
 
-        <div class="chart-card">
-            <canvas id="historyChart" style="max-height: 380px;"></canvas>
-        </div>
+    <h3 style="font-weight: 600; margin-bottom: 8px;">Latest Snapshot</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Ticker</th>
+                <th>Spot Price</th>
+                <th>50% Strike (K)</th>
+                <th>Target Date</th>
+                <th>ATM IV</th>
+                <th>Wing IV</th>
+                <th>Risk-Neutral Q(S &le; K)</th>
+                <th>Physical P(S &le; K)</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            <tr>
+                <td><strong>NVDA</strong></td>
+                <td>$210.96</td>
+                <td>$105.48</td>
+                <td>2028-12-15</td>
+                <td>41.0%</td>
+                <td>48.3%</td>
+                <td class="highlight">19.8%</td>
+                <td>14.8%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>GOOG</strong></td>
+                <td>$317.28</td>
+                <td>$158.64</td>
+                <td>2028-12-15</td>
+                <td>36.0%</td>
+                <td>42.5%</td>
+                <td class="highlight">15.2%</td>
+                <td>13.0%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>MSFT</strong></td>
+                <td>$524.51</td>
+                <td>$262.26</td>
+                <td>2028-12-15</td>
+                <td>33.1%</td>
+                <td>39.1%</td>
+                <td class="highlight">12.4%</td>
+                <td>10.4%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>AAPL</strong></td>
+                <td>$347.73</td>
+                <td>$173.86</td>
+                <td>2028-12-15</td>
+                <td>28.9%</td>
+                <td>34.1%</td>
+                <td class="highlight">8.4%</td>
+                <td>6.5%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>AMZN</strong></td>
+                <td>$248.00</td>
+                <td>$124.00</td>
+                <td>2028-12-15</td>
+                <td>37.8%</td>
+                <td>44.6%</td>
+                <td class="highlight">16.9%</td>
+                <td>14.0%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>META</strong></td>
+                <td>$642.62</td>
+                <td>$321.31</td>
+                <td>2028-12-15</td>
+                <td>41.8%</td>
+                <td>49.3%</td>
+                <td class="highlight">20.6%</td>
+                <td>19.1%</td>
+            </tr>
+            
+        </tbody>
+    </table>
 
-        <h3 style="font-weight: 600; margin-bottom: 8px;">Latest Snapshot</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Ticker</th>
-                    <th>Spot Price</th>
-                    <th>50% Strike (K)</th>
-                    <th>Expiry</th>
-                    <th>ATM IV</th>
-                    <th>Wing IV</th>
-                    <th>Risk-Neutral Q(S &le; K)</th>
-                    <th>Physical P(S &le; K)</th>
-                </tr>
-            </thead>
-            <tbody>
-                
-                <tr>
-                    <td><strong>NVDA</strong></td>
-                    <td>$210.96</td>
-                    <td>$105.48</td>
-                    <td>2028-12-15</td>
-                    <td>31.0%</td>
-                    <td>41.6%</td>
-                    <td class="highlight">16.7%</td>
-                    <td>9.3%</td>
-                </tr>
-                
-                <tr>
-                    <td><strong>GOOG</strong></td>
-                    <td>$317.28</td>
-                    <td>$158.64</td>
-                    <td>2028-12-15</td>
-                    <td>27.2%</td>
-                    <td>38.4%</td>
-                    <td class="highlight">33.1%</td>
-                    <td>9.6%</td>
-                </tr>
-                
-                <tr>
-                    <td><strong>MSFT</strong></td>
-                    <td>$524.51</td>
-                    <td>$262.26</td>
-                    <td>2028-12-15</td>
-                    <td>24.9%</td>
-                    <td>34.6%</td>
-                    <td class="highlight">12.3%</td>
-                    <td>6.9%</td>
-                </tr>
-                
-                <tr>
-                    <td><strong>AAPL</strong></td>
-                    <td>$347.73</td>
-                    <td>$173.86</td>
-                    <td>2028-12-15</td>
-                    <td>20.1%</td>
-                    <td>33.2%</td>
-                    <td class="highlight">18.6%</td>
-                    <td>5.8%</td>
-                </tr>
-                
-                <tr>
-                    <td><strong>AMZN</strong></td>
-                    <td>$248.00</td>
-                    <td>$124.00</td>
-                    <td>2028-12-15</td>
-                    <td>28.6%</td>
-                    <td>36.6%</td>
-                    <td class="highlight">0.0%</td>
-                    <td>7.5%</td>
-                </tr>
-                
-                <tr>
-                    <td><strong>META</strong></td>
-                    <td>$642.62</td>
-                    <td>$321.31</td>
-                    <td>2028-12-15</td>
-                    <td>33.0%</td>
-                    <td>40.2%</td>
-                    <td class="highlight">9.2%</td>
-                    <td>11.1%</td>
-                </tr>
-                
-            </tbody>
-        </table>
+    <footer>
+        Updated: 2026-10-23 22:49 UTC | Repository: <a href="https://github.com/PrestonMcAfee/AI_Apocalypse">PrestonMcAfee/AI_Apocalypse</a>
+    </footer>
 
-        <footer>
-            Updated: 2026-10-23 20:43 UTC | Repository: <a href="https://github.com/PrestonMcAfee/AI_Apocalypse">PrestonMcAfee/AI_Apocalypse</a>
-        </footer>
-
-        <script>
-            const chartData = {"labels": ["2026-10-23"], "datasets": [{"label": "NVDA Q(S <= 50%)", "data": [16.7], "borderColor": "#10b981", "backgroundColor": "#10b981", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "GOOG Q(S <= 50%)", "data": [33.11], "borderColor": "#3b82f6", "backgroundColor": "#3b82f6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "MSFT Q(S <= 50%)", "data": [12.34], "borderColor": "#8b5cf6", "backgroundColor": "#8b5cf6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AAPL Q(S <= 50%)", "data": [18.64], "borderColor": "#f59e0b", "backgroundColor": "#f59e0b", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AMZN Q(S <= 50%)", "data": [0.0], "borderColor": "#ef4444", "backgroundColor": "#ef4444", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "META Q(S <= 50%)", "data": [9.2], "borderColor": "#06b6d4", "backgroundColor": "#06b6d4", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}]};
-            const ctx = document.getElementById('historyChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
-                                }
+    <script>
+        const chartData = {"labels": ["2026-10-22", "2026-10-23"], "datasets": [{"label": "NVDA Q(S <= 50%)", "data": [19.82, 19.82], "borderColor": "#10b981", "backgroundColor": "#10b981", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "GOOG Q(S <= 50%)", "data": [15.2, 15.2], "borderColor": "#3b82f6", "backgroundColor": "#3b82f6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "MSFT Q(S <= 50%)", "data": [12.42, 12.42], "borderColor": "#8b5cf6", "backgroundColor": "#8b5cf6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AAPL Q(S <= 50%)", "data": [8.42, 8.42], "borderColor": "#f59e0b", "backgroundColor": "#f59e0b", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AMZN Q(S <= 50%)", "data": [16.86, 16.86], "borderColor": "#ef4444", "backgroundColor": "#ef4444", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "META Q(S <= 50%)", "data": [20.59, 20.59], "borderColor": "#06b6d4", "backgroundColor": "#06b6d4", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}]};
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
                             }
                         }
-                    },
-                    scales: {
-                        x: { grid: { display: false } },
-                        y: {
-                            title: { display: true, text: 'Risk-Neutral Probability (%)' },
-                            ticks: { callback: v => v + '%' },
-                            suggestedMin: 0
-                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        title: { display: true, text: 'Risk-Neutral Probability (%)' },
+                        ticks: { callback: v => v + '%' },
+                        suggestedMin: 0
                     }
                 }
-            });
-        </script>
-    </body>
-    </html>
-    
+            }
+        });
+    </script>
+</body>
+</html>
