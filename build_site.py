@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
@@ -12,7 +12,7 @@ TICKERS = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "META"]
 OUTPUT_FILE = "index.html"
 HISTORY_FILE = "history.csv"
 TEMPLATE_FILE = "template.html"
-TARGET_DATE_STR = "2028-12-15"
+HORIZON_YEARS = 2.0  # Constant 2-year forward window
 RISK_FREE_RATE = 0.039  # ~2-year Treasury yield
 
 def get_atm_volatility(tk, spot):
@@ -58,9 +58,10 @@ def compute_half_drawdown_stats(ticker_symbol):
 
     target_strike = round(spot / 2.0, 2)
 
-    # 2. Fixed Target Horizon (Dec 15, 2028 for ALL tickers)
-    target_dt = datetime.strptime(TARGET_DATE_STR, "%Y-%m-%d")
-    T = max((target_dt - datetime.now()).days / 365.25, 0.1)
+    # 2. Rolling 2-Year Target Horizon
+    T = HORIZON_YEARS
+    target_dt = datetime.now() + timedelta(days=int(T * 365.25))
+    target_date_str = target_dt.strftime("%Y-%m-%d")
 
     # 3. ATM Volatility & Downside Skew Modeling
     atm_sigma = get_atm_volatility(tk, spot)
@@ -71,7 +72,7 @@ def compute_half_drawdown_stats(ticker_symbol):
 
     # 4. Closed-form Risk-Neutral Probability Q(S_T <= K)
     r = RISK_FREE_RATE
-    q = 0.005
+    q = 0.005  # Approximate dividend yield
     F = spot * np.exp((r - q) * T)
 
     d1 = (np.log(spot / target_strike) + (r - q + 0.5 * wing_sigma**2) * T) / (wing_sigma * np.sqrt(T))
@@ -94,7 +95,7 @@ def compute_half_drawdown_stats(ticker_symbol):
         "ticker": ticker_symbol,
         "spot": spot,
         "target_strike": target_strike,
-        "expiration": TARGET_DATE_STR,
+        "expiration": target_date_str,
         "atm_iv": atm_sigma,
         "wing_iv": wing_sigma,
         "prob_Q": prob_Q,
@@ -166,7 +167,7 @@ if __name__ == "__main__":
             data = compute_half_drawdown_stats(ticker)
             if data:
                 results.append(data)
-                print(f"Processed {ticker}: Spot=${data['spot']:.2f}, ATM IV={data['atm_iv']*100:.1f}%, Q={data['prob_Q']*100:.1f}%")
+                print(f"Processed {ticker}: Spot=${data['spot']:.2f}, Target={data['expiration']}, Q={data['prob_Q']*100:.1f}%")
         except Exception as e:
             print(f"Failed processing {ticker}: {e}")
 
