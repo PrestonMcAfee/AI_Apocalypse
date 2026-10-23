@@ -2,8 +2,7 @@ name: Daily Drawdown Probability Update
 
 on:
   schedule:
-    # 21:30 UTC = 1:30 PM PDT / 4:30 PM EDT (Monday through Friday)
-    - cron: '30 21 * * 1-5'
+    - cron: '15 21 * * 1-5'
   workflow_dispatch:
 
 permissions:
