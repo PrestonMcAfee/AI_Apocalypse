@@ -156,7 +156,7 @@ def format_chart_payload(history_df):
       "GOOG": "#3b82f6",  # Vibrant Blue
       "MSFT": "#8b5cf6",  # Purple
       "AAPL": "#f59e0b",  # Amber / Gold
-      "AMZN": "#ef4444",  # Red
+      "AMZN": "#ff8f00",  # Red
       "META": "#06b6d4",  # Cyan
       "TSLA": "#e11d48",  # Crimson / Rose
       "SPCX": "#475569",  # Slate Navy
@@ -167,7 +167,7 @@ def format_chart_payload(history_df):
       "#3b82f6",
       "#8b5cf6",
       "#f59e0b",
-      "#ef4444",
+      "#ff8f00",
       "#06b6d4",
       "#e11d48",
       "#475569",
