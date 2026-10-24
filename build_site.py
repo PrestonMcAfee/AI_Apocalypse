@@ -8,7 +8,7 @@ import yfinance as yf
 import jinja2
 
 # Configuration
-TICKERS = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "META"]
+TICKERS = ["NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "META","TSLA","SPCX"]
 OUTPUT_FILE = "index.html"
 HISTORY_FILE = "history.csv"
 TEMPLATE_FILE = "template.html"
