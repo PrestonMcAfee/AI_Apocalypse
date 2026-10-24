@@ -155,15 +155,15 @@ def format_chart_payload(history_df):
       "NVDA": "#10b981",  # Emerald Green
       "GOOG": "#3b82f6",  # Vibrant Blue
       "MSFT": "#8b5cf6",  # Purple
-      "AAPL": "#f59e0b",  # Amber / Gold
-      "AMZN": "#ff8f00",  # Red
+      "AAPL": "#00ff00",  # Green
+      "AMZN": "#ff8f00",  # Orange
       "META": "#06b6d4",  # Cyan
       "TSLA": "#e11d48",  # Crimson / Rose
       "SPCX": "#475569",  # Slate Navy
   }
 
   fallback_colors = [
-      "#10b981",
+      "#00ff00",
       "#3b82f6",
       "#8b5cf6",
       "#f59e0b",
