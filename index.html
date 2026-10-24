@@ -17,9 +17,14 @@
         th { background: #fafafa; font-weight: 600; color: #333; }
         tr:hover { background: #fdfdfd; }
         .highlight { font-weight: 600; color: #b91c1c; }
+        .methodology { margin-top: 40px; padding: 22px 26px; background: #fcfcfc; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 0.9rem; color: #333; line-height: 1.6; }
+        .methodology h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.05rem; font-weight: 600; color: #111; }
+        .methodology p { margin-top: 0; margin-bottom: 12px; }
+        .methodology p:last-child { margin-bottom: 0; }
         footer { margin-top: 35px; font-size: 0.8rem; color: #777; border-top: 1px solid #eee; padding-top: 12px; }
         a { color: #2563eb; text-decoration: none; }
         a:hover { text-decoration: underline; }
+        code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; }
     </style>
 </head>
 <body>
@@ -27,7 +32,7 @@
     <p class="sub">Tracks market-implied risk-neutral probability over a rolling 2-year horizon via liquid ATM LEAPS volatility and downside skew modeling.</p>
 
     <div class="chart-card">
-        <canvas id="historyChart" style="max-height: 380px;"></canvas>
+        <canvas id="historyChart" style="height: 600px;"></canvas>
     </div>
 
     <h3 style="font-weight: 600; margin-bottom: 8px;">Latest Snapshot</h3>
@@ -50,29 +55,29 @@
                 <td><strong>NVDA</strong></td>
                 <td>$210.96</td>
                 <td>$105.48</td>
-                <td>2028-10-22</td>
+                <td>2028-10-23</td>
                 <td>41.0%</td>
-                <td>48.3%</td>
+                <td>48.4%</td>
                 <td class="highlight">18.7%</td>
-                <td>14.0%</td>
+                <td>14.1%</td>
             </tr>
             
             <tr>
                 <td><strong>GOOG</strong></td>
                 <td>$317.28</td>
                 <td>$158.64</td>
-                <td>2028-10-22</td>
+                <td>2028-10-23</td>
                 <td>36.0%</td>
                 <td>42.5%</td>
                 <td class="highlight">14.2%</td>
-                <td>12.2%</td>
+                <td>12.3%</td>
             </tr>
             
             <tr>
                 <td><strong>MSFT</strong></td>
                 <td>$524.51</td>
                 <td>$262.26</td>
-                <td>2028-10-22</td>
+                <td>2028-10-23</td>
                 <td>33.1%</td>
                 <td>39.1%</td>
                 <td class="highlight">11.5%</td>
@@ -82,19 +87,19 @@
             <tr>
                 <td><strong>AAPL</strong></td>
                 <td>$347.73</td>
-                <td>$173.86</td>
-                <td>2028-10-22</td>
+                <td>$173.87</td>
+                <td>2028-10-23</td>
                 <td>28.9%</td>
                 <td>34.1%</td>
                 <td class="highlight">7.7%</td>
-                <td>5.9%</td>
+                <td>6.0%</td>
             </tr>
             
             <tr>
                 <td><strong>AMZN</strong></td>
                 <td>$248.00</td>
                 <td>$124.00</td>
-                <td>2028-10-22</td>
+                <td>2028-10-23</td>
                 <td>37.8%</td>
                 <td>44.6%</td>
                 <td class="highlight">15.8%</td>
@@ -105,22 +110,57 @@
                 <td><strong>META</strong></td>
                 <td>$642.62</td>
                 <td>$321.31</td>
-                <td>2028-10-22</td>
+                <td>2028-10-23</td>
                 <td>41.8%</td>
-                <td>49.3%</td>
+                <td>49.4%</td>
                 <td class="highlight">19.5%</td>
                 <td>18.2%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>TSLA</strong></td>
+                <td>$372.22</td>
+                <td>$186.11</td>
+                <td>2028-10-23</td>
+                <td>44.6%</td>
+                <td>52.6%</td>
+                <td class="highlight">21.9%</td>
+                <td>18.5%</td>
+            </tr>
+            
+            <tr>
+                <td><strong>SPCX</strong></td>
+                <td>$147.49</td>
+                <td>$73.75</td>
+                <td>2028-10-23</td>
+                <td>53.6%</td>
+                <td>63.2%</td>
+                <td class="highlight">29.1%</td>
+                <td>29.6%</td>
             </tr>
             
         </tbody>
     </table>
 
+    <div class="methodology">
+        <h3>Methodology & Theoretical Framework</h3>
+        <p>
+            <strong>Objective & Horizon:</strong> This dashboard estimates the probability that a constituent equity suffers a 50% drawdown ($S_T \le 0.5 S_0$) over a rolling, constant 2-year forward horizon ($T = 2.0\text{ years}$). Evaluating on a fixed-duration rolling window removes seasonal calendar expiration decay and maintains uniform comparability across tickers.
+        </p>
+        <p>
+            <strong>Risk-Neutral Probability $\mathbb{Q}(S_T \le K)$:</strong> Extracted from forward option pricing under the risk-neutral pricing measure. Rather than relying on illiquid, sparse deep-out-of-the-money put quotes, the model anchors to high-liquidity at-the-money (ATM) LEAPS contracts and applies an empirical equity volatility skew ($\sigma_{\text{wing}} \approx 1.18 \times \sigma_{\text{ATM}}$) to price the 50% strike. Tail probability is evaluated via the closed-form Black-Scholes lognormal CDF $d_2 = (\ln(F/K) - \frac{1}{2}\sigma_{\text{wing}}^2 T)/(\sigma_{\text{wing}}\sqrt{T})$ with a Breeden–Litzenberger (1978) skew-adjustment factor. $\mathbb{Q}$ reflects the market price of downside insurance and embeds investors' risk aversion; it does not assume expected positive equity returns.
+        </p>
+        <p>
+            <strong>Physical (Real-World) Probability $\mathbb{P}(S_T \le K)$:</strong> Estimates the objective statistical probability by augmenting the distribution with a positive drift rate estimated via the Capital Asset Pricing Model (CAPM): $\mu = r + \beta \times \text{ERP}$, where $r \approx 3.9\%$ (2-year Treasury yield) and $\text{ERP} = 4.5\%$ (equity risk premium). Because equities have an expected positive drift over a 2-year horizon, $\mathbb{P}$ is substantially lower than the risk-neutral probability $\mathbb{Q}$.
+        </p>
+    </div>
+
     <footer>
-        Updated: 2026-10-23 23:43 UTC | Repository: <a href="https://github.com/PrestonMcAfee/AI_Apocalypse">PrestonMcAfee/AI_Apocalypse</a>
+        Updated: 2026-10-24 13:35 UTC | Repository: <a href="https://github.com/PrestonMcAfee/AI_Apocalypse">PrestonMcAfee/AI_Apocalypse</a>
     </footer>
 
     <script>
-        const chartData = {"labels": ["2026-10-22", "2026-10-23"], "datasets": [{"label": "NVDA Q(S <= 50%)", "data": [19.0, 18.71], "borderColor": "#10b981", "backgroundColor": "#10b981", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "GOOG Q(S <= 50%)", "data": [15.9, 14.2], "borderColor": "#3b82f6", "backgroundColor": "#3b82f6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "MSFT Q(S <= 50%)", "data": [12.9, 11.51], "borderColor": "#8b5cf6", "backgroundColor": "#8b5cf6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AAPL Q(S <= 50%)", "data": [8.99, 7.66], "borderColor": "#f59e0b", "backgroundColor": "#f59e0b", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AMZN Q(S <= 50%)", "data": [16.0, 15.82], "borderColor": "#ef4444", "backgroundColor": "#ef4444", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "META Q(S <= 50%)", "data": [20.0, 19.47], "borderColor": "#06b6d4", "backgroundColor": "#06b6d4", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}]};
+        const chartData = {"labels": ["2026-10-22", "2026-10-23", "2026-10-24"], "datasets": [{"label": "NVDA Q(S <= 50%)", "data": [18.0, 18.73, 18.73], "borderColor": "#10b981", "backgroundColor": "#10b981", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "GOOG Q(S <= 50%)", "data": [14.9, 14.22, 14.22], "borderColor": "#3b82f6", "backgroundColor": "#3b82f6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "MSFT Q(S <= 50%)", "data": [11.0, 11.52, 11.52], "borderColor": "#8b5cf6", "backgroundColor": "#8b5cf6", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AAPL Q(S <= 50%)", "data": [7.0, 7.68, 7.68], "borderColor": "#00ff00", "backgroundColor": "#00ff00", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "AMZN Q(S <= 50%)", "data": [15.0, 15.84, 15.84], "borderColor": "#ff8f00", "backgroundColor": "#ff8f00", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "META Q(S <= 50%)", "data": [19.9, 19.49, 19.49], "borderColor": "#06b6d4", "backgroundColor": "#06b6d4", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "TSLA Q(S <= 50%)", "data": [21.0, 21.89, 21.89], "borderColor": "#e11d48", "backgroundColor": "#e11d48", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}, {"label": "SPCX Q(S <= 50%)", "data": [29.9, 29.14, 29.14], "borderColor": "#475569", "backgroundColor": "#475569", "tension": 0.25, "borderWidth": 2, "pointRadius": 3, "fill": false}]};
         const ctx = document.getElementById('historyChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
