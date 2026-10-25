@@ -164,13 +164,13 @@ def format_chart_payload(history_df):
     
     # 11 distinct high-contrast colors; AAPL set to deep dark orange #FF8C00
     palette = {
-        "NVDA": "#10b981",  # Emerald Green
-        "GOOG": "#3b82f6",  # Vibrant Blue
-        "MSFT": "#8b5cf6",  # Medium Purple
-        "AAPL": "#FF8C00",  # High-Visibility Dark Orange
-        "AMZN": "#ef4444",  # Red
-        "META": "#06b6d4",  # Cyan
-        "TSLA": "#e11d48",  # Crimson / Rose
+        "NVDA": "#00FF00",  # Green
+        "GOOG": "#FF00FF",  # Magenta
+        "MSFT": "#000000",  # Black
+        "AAPL": "#FF0000",  # Red
+        "AMZN": "#FF8D1A",  # Orange
+        "META": "#00BFFF",  # Cyan
+        "TSLA": "#8A2BE2",  # Purple
         "SPCX": "#475569",  # Slate
         "SPY":  "#b45309",  # Deep Ochre Brown
         "QQQ":  "#1d4ed8",  # Deep Cobalt Blue
@@ -178,9 +178,8 @@ def format_chart_payload(history_df):
     }
     
     fallback_colors = [
-        "#10b981", "#3b82f6", "#8b5cf6", "#FF8C00", 
-        "#ef4444", "#06b6d4", "#e11d48", "#475569",
-        "#b45309", "#1d4ed8", "#047857"
+        "#00FF00",  "#FF00FF",  "#000000",  "#FF0000",  "#FF8D1A",
+        "#00BFFF",  "#8A2BE2",  "#475569",  "#b45309",  "#1d4ed8", "#047857"
     ]
     
     datasets = []
