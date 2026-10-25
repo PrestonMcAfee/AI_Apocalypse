@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 165" width="100%" height="165">
+  <style>
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+    .math { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: italic; }
+    .math-normal { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: normal; }
+    .desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; fill: #334155; }
+    .sub { font-size: 11px; }
+    .sup { font-size: 11px; }
+  </style>
+  <rect width="820" height="165" fill="#ffffff" rx="6" />
+  <text x="25" y="42"><tspan class="label">Physical Equity Drift (CAPM): </tspan><tspan class="math-normal">μ = </tspan><tspan class="math">r</tspan><tspan class="math-normal"> + β × ERP, where ERP = 4.5%</tspan></text>
+  <text x="25" y="84"><tspan class="label">Expected Future Price: </tspan><tspan class="math">E</tspan><tspan class="sub">P</tspan><tspan class="math-normal">[</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal">] = </tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan><tspan class="math"> e</tspan><tspan class="sup">μT</tspan></text>
+  <text x="25" y="126"><tspan class="label">Physical Tail Probability: </tspan><tspan class="math">P</tspan><tspan class="math-normal">(</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal"> ≤ </tspan><tspan class="math">K</tspan><tspan class="math-normal">) = N(−</tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="sup">P</tspan><tspan class="math-normal">), where </tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="sup">P</tspan><tspan class="math-normal"> = [ ln(</tspan><tspan class="math">E</tspan><tspan class="sub">P</tspan><tspan class="math-normal">[</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal">]/</tspan><tspan class="math">K</tspan><tspan class="math-normal">) − ½σ</tspan><tspan class="sub">wing</tspan><tspan class="sup">2</tspan><tspan class="math">T</tspan><tspan class="math-normal"> ] / ( σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal">√</tspan><tspan class="math">T</tspan><tspan class="math-normal"> )</tspan></text>
+</svg>

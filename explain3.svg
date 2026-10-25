@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 165" width="100%" height="165">
+  <style>
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+    .math { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: italic; }
+    .math-normal { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: normal; }
+    .desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; fill: #334155; }
+    .sub { font-size: 11px; }
+    .sup { font-size: 11px; }
+  </style>
+  <rect width="820" height="165" fill="#ffffff" rx="6" />
+  <text x="25" y="42"><tspan class="label">Live Regime (Oct 2025+): </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">ATM</tspan><tspan class="math-normal"> = median(σ</tspan><tspan class="sub">LEAPS calls</tspan><tspan class="math-normal">, σ</tspan><tspan class="sub">LEAPS puts</tspan><tspan class="math-normal">)</tspan></text>
+  <text x="25" y="84"><tspan class="label">Historical Proxy (2021–2025): </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">RV</tspan><tspan class="math-normal"> = std(ln(</tspan><tspan class="math">S</tspan><tspan class="sub">τ</tspan><tspan class="math-normal">/</tspan><tspan class="math">S</tspan><tspan class="sub">τ−1</tspan><tspan class="math-normal">))</tspan><tspan class="sub">63d</tspan><tspan class="math-normal"> × √252</tspan></text>
+  <text x="25" y="126"><tspan class="label">Implied Volatility Scaling: </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">ATM</tspan><tspan class="math-normal"> ≈ σ</tspan><tspan class="sub">RV</tspan><tspan class="math-normal"> × VRP (with VRP = 1.12)</tspan></text>
+</svg>

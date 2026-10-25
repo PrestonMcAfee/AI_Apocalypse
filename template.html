@@ -12,20 +12,24 @@
         h2 { margin-bottom: 4px; font-weight: 700; }
         p.sub { color: #555; margin-top: 0; margin-bottom: 24px; font-size: 0.95rem; }
         .chart-card { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-bottom: 35px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
-        th, td { text-align: right; padding: 10px 14px; border-bottom: 1px solid #e5e5e5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.92rem; }
+        th, td { text-align: right; padding: 10px 12px; border-bottom: 1px solid #e5e5e5; }
         th:first-child, td:first-child { text-align: left; }
         th { background: #fafafa; font-weight: 600; color: #333; }
         tr:hover { background: #fdfdfd; }
         .highlight { font-weight: 600; color: #b91c1c; }
-        .methodology { margin-top: 40px; padding: 22px 26px; background: #fcfcfc; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 0.9rem; color: #333; line-height: 1.6; }
-        .methodology h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.05rem; font-weight: 600; color: #111; }
+        .methodology { margin-top: 40px; padding: 24px 28px; background: #fcfcfc; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 0.92rem; color: #222; line-height: 1.65; }
+        .methodology h3 { margin-top: 0; margin-bottom: 16px; font-size: 1.20rem; font-weight: 700; color: #111; border-bottom: 2px solid #e5e5e5; padding-bottom: 8px; }
+        .methodology h4 { margin-top: 24px; margin-bottom: 8px; font-size: 1.02rem; font-weight: 600; color: #1f2937; }
         .methodology p { margin-top: 0; margin-bottom: 12px; }
-        .methodology p:last-child { margin-bottom: 0; }
+        .methodology ul { margin-top: 4px; margin-bottom: 14px; padding-left: 20px; }
+        .methodology li { margin-bottom: 6px; }
+        .formula-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin: 12px 0 18px 0; }
+        .formula-card img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
         footer { margin-top: 35px; font-size: 0.8rem; color: #777; border-top: 1px solid #eee; padding-top: 12px; }
         a { color: #2563eb; text-decoration: none; }
         a:hover { text-decoration: underline; }
-        code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-size: 0.85em; }
+        code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-size: 0.88em; }
     </style>
 </head>
 <body>
@@ -67,16 +71,76 @@
     </table>
 
     <div class="methodology">
-        <h3>Methodology & Theoretical Framework</h3>
+        <h3>Methodology & Operational Framework</h3>
+
+        <h4>1. Objective and Horizon</h4>
         <p>
-            <strong>Objective & Horizon:</strong> This dashboard estimates the probability that a constituent equity suffers a 50% drawdown ($S_T \le 0.5 S_0$) over a rolling, constant 2-year forward horizon ($T = 2.0\text{ years}$). Evaluating on a fixed-duration rolling window removes seasonal calendar expiration decay and maintains uniform comparability across tickers.
+            This tracker estimates the probability that a major technology equity or major stock index falls 50% or more from its price today over a rolling, constant 2-year forward window (T = 2.0 years). Rather than tracking a fixed expiration date that decays toward zero, the evaluation window rolls forward continuously so that daily tail-risk readings remain directly comparable over time.
         </p>
+        <div class="formula-card">
+            <img src="explain1.svg" alt="Rolling Target Horizon and 50 Percent Strike" />
+        </div>
+
+        <h4>2. Tracked Assets and Benchmark Index ETFs</h4>
         <p>
-            <strong>Risk-Neutral Probability $\mathbb{Q}(S_T \le K)$:</strong> Extracted from forward option pricing under the risk-neutral pricing measure. Rather than relying on illiquid, sparse deep-out-of-the-money put quotes, the model anchors to high-liquidity at-the-money (ATM) LEAPS contracts and applies an empirical equity volatility skew ($\sigma_{\text{wing}} \approx 1.18 \times \sigma_{\text{ATM}}$) to price the 50% strike. Tail probability is evaluated via the closed-form Black-Scholes lognormal CDF $d_2 = (\ln(F/K) - \frac{1}{2}\sigma_{\text{wing}}^2 T)/(\sigma_{\text{wing}}\sqrt{T})$ with a Breeden–Litzenberger (1978) skew-adjustment factor. $\mathbb{Q}$ reflects the market price of downside insurance and embeds investors' risk aversion; it does not assume expected positive equity returns.
+            The dashboard tracks leading enterprise and consumer tech equities (NVDA, GOOG, MSFT, AAPL, AMZN, META, TSLA) and special purpose vehicles (SPCX), alongside the three major US equity market benchmarks via their primary exchange-traded funds (ETFs):
         </p>
+        <ul>
+            <li><strong>SPY:</strong> SPDR S&P 500 ETF Trust (tracks the S&P 500 Index).</li>
+            <li><strong>QQQ:</strong> Invesco QQQ Trust (tracks the Nasdaq-100 Index).</li>
+            <li><strong>DIA:</strong> SPDR Dow Jones Industrial Average ETF Trust (tracks the 30-stock Dow Jones Industrial Average).</li>
+        </ul>
         <p>
-            <strong>Physical (Real-World) Probability $\mathbb{P}(S_T \le K)$:</strong> Estimates the objective statistical probability by augmenting the distribution with a positive drift rate estimated via the Capital Asset Pricing Model (CAPM): $\mu = r + \beta \times \text{ERP}$, where $r \approx 3.9\%$ (2-year Treasury yield) and $\text{ERP} = 4.5\%$ (equity risk premium). Because equities have an expected positive drift over a 2-year horizon, $\mathbb{P}$ is substantially lower than the risk-neutral probability $\mathbb{Q}$.
+            Because these funds track the underlying indices on a continuous 1:1 basis, evaluating option-implied tail risks on the ETFs directly reflects the market-implied probability of a systemic 50% market drawdown.
         </p>
+
+        <h4>3. The Dynamic Risk-Free Rate and Forward Price</h4>
+        <p>
+            The risk-free interest rate (r) is dynamically mapped to the current market yield of the <strong>2-Year US Treasury note (Yahoo ticker: <code>2YY=F</code>)</strong>. Aligning the discount rate with the exact 2-year duration automatically reflects macroeconomic shifts, from the 0.2% rate environment of 2021 to the higher yield regime of 2023–2026. Forward prices incorporate this rate along with a baseline dividend yield approximation (q = 0.5%).
+        </p>
+        <div class="formula-card">
+            <img src="explain2.svg" alt="Dynamic Risk Free Rate and Forward Price Formulation" />
+        </div>
+
+        <h4>4. Volatility Estimation: Historical Monthly Proxy vs. Live LEAPS Regime</h4>
+        <p>
+            Because historical options chain quotes are not stored in free public APIs, the dataset is divided into two distinct operating regimes:
+        </p>
+        <ul>
+            <li>
+                <strong>Historical Monthly Series (January 2021 &ndash; September 2025):</strong> Evaluated on the 15th of each month. Historical realized volatility is computed over a rolling 63-trading-day window (~3 months). Because option markets persistently trade at a premium to realized volatility, the volatility proxy is scaled by a Volatility Risk Premium (VRP = 1.12).
+            </li>
+            <li>
+                <strong>Live Daily Tracking (Starting October 2025 Onward):</strong> Every weekday after market close, the automated engine scrapes live LEAPS options chains from Yahoo Finance, extracting at-the-money (ATM) implied volatility directly from active calls and puts.
+            </li>
+        </ul>
+        <div class="formula-card">
+            <img src="explain3.svg" alt="Volatility Estimation Across Regimes" />
+        </div>
+
+        <h4>5. Downside Skew Modeling</h4>
+        <p>
+            Deep out-of-the-money puts trade at an implied volatility premium over ATM options (the volatility smile/skew). Rather than fitting sparse or illiquid deep-OTM put contracts, the model scales the liquid ATM baseline by an empirical downside skew factor of 1.18 to determine the wing volatility for the 50% drawdown strike.
+        </p>
+        <div class="formula-card">
+            <img src="explain4.svg" alt="Downside Wing Volatility Modeling" />
+        </div>
+
+        <h4>6. Risk-Neutral Tail Probability Q(S &le; K)</h4>
+        <p>
+            The risk-neutral probability Q reflects the market price of downside catastrophe insurance embedded in option contracts. Evaluated via the Black-Scholes lognormal CDF with a Breeden-Litzenberger skew slope factor (0.85), Q reflects investors' risk aversion and appetite for portfolio insurance without assuming expected positive stock price growth.
+        </p>
+        <div class="formula-card">
+            <img src="explain5.svg" alt="Risk-Neutral Tail Probability Evaluation" />
+        </div>
+
+        <h4>7. Physical Tail Probability P(S &le; K) with CAPM Drift</h4>
+        <p>
+            The physical probability P represents the statistical real-world probability of a 50% drawdown. Under the physical measure, equities have positive expected drift (&mu;) estimated via the Capital Asset Pricing Model (&mu; = r + &beta; &times; ERP, with an Equity Risk Premium of 4.5%). Because equities are expected to appreciate over a two-year holding period, the statistical physical probability is significantly lower than the risk-neutral hedging probability.
+        </p>
+        <div class="formula-card">
+            <img src="explain6.svg" alt="Physical Tail Probability Evaluation with CAPM Drift" />
+        </div>
     </div>
 
     <footer>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 130" width="100%" height="130">
+  <style>
+    .label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #0f172a; }
+    .math { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: italic; }
+    .math-normal { font-family: "Cambria Math", "Times New Roman", Times, serif; font-size: 17px; fill: #1e293b; font-style: normal; }
+    .desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; fill: #334155; }
+    .sub { font-size: 11px; }
+    .sup { font-size: 11px; }
+  </style>
+  <rect width="820" height="130" fill="#ffffff" rx="6" />
+  <text x="25" y="48"><tspan class="label">Risk-Neutral Tail Probability: </tspan><tspan class="math">Q</tspan><tspan class="math-normal">(</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal"> ≤ </tspan><tspan class="math">K</tspan><tspan class="math-normal">) = 0.85 × N(−</tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="math-normal">)</tspan></text>
+  <text x="25" y="92"><tspan class="math-normal">where </tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="math-normal"> = [ ln(</tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan><tspan class="math-normal">/</tspan><tspan class="math">K</tspan><tspan class="math-normal">) + (</tspan><tspan class="math">r</tspan><tspan class="math-normal"> − </tspan><tspan class="math">q</tspan><tspan class="math-normal"> − ½σ</tspan><tspan class="sub">wing</tspan><tspan class="sup">2</tspan><tspan class="math-normal">)</tspan><tspan class="math">T</tspan><tspan class="math-normal"> ] / ( σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal">√</tspan><tspan class="math">T</tspan><tspan class="math-normal"> )</tspan></text>
+</svg>
