@@ -31,18 +31,20 @@ def get_current_2y_treasury_rate(default_rate=DEFAULT_RISK_FREE_RATE):
                 rate_val = float(hist["Close"].iloc[-1])
                 
         if rate_val is not None and rate_val > 0:
-            # 2YY=F quotes in percentage points (e.g., 3.85 for 3.85%)
             return float(rate_val) / 100.0
     except Exception as e:
         print(f"Warning: Could not fetch dynamic 2Y rate ({e}). Using default {default_rate:.3f}.")
     return default_rate
 
 def get_atm_volatility(tk, spot):
-    """Extracts liquid ATM implied volatility from the furthest available reliable chain."""
+    """
+    Extracts liquid ATM implied volatility from the furthest available reliable chain.
+    Also returns the actual expiration date and day count to avoid unmeasured maturity distortion.
+    """
     try:
         exps = tk.options
         if not exps:
-            return 0.35
+            return 0.35, None, False
 
         target_exp = exps[-1]
         chain = tk.option_chain(target_exp)
@@ -62,9 +64,11 @@ def get_atm_volatility(tk, spot):
         if p_atm is not None and not p_atm.empty:
             vols.extend(p_atm['impliedVolatility'].tolist())
 
-        return float(np.median(vols)) if vols else 0.35
+        if vols:
+            return float(np.median(vols)), target_exp, False
+        return 0.35, target_exp, True
     except Exception:
-        return 0.35
+        return 0.35, None, True
 
 def compute_half_drawdown_stats(ticker_symbol, r=DEFAULT_RISK_FREE_RATE):
     tk = yf.Ticker(ticker_symbol)
@@ -86,26 +90,22 @@ def compute_half_drawdown_stats(ticker_symbol, r=DEFAULT_RISK_FREE_RATE):
     target_date_str = target_dt.strftime("%Y-%m-%d")
 
     # 3. ATM Volatility & Downside Skew Modeling
-    atm_sigma = get_atm_volatility(tk, spot)
+    atm_sigma, src_exp, is_fallback = get_atm_volatility(tk, spot)
 
     # Downside skew premium for 50% OTM strike over ~2yr horizon
     skew_multiplier = 1.18
     wing_sigma = atm_sigma * skew_multiplier
 
-    # 4. Closed-form Risk-Neutral Probability Q(S_T <= K)
+    # 4. Closed-form Risk-Neutral Probability Q(S_T <= K) (Unclipped, unscaled)
     q = 0.005  # Approximate dividend yield
     F = spot * np.exp((r - q) * T)
 
     d1 = (np.log(spot / target_strike) + (r - q + 0.5 * wing_sigma**2) * T) / (wing_sigma * np.sqrt(T))
     d2 = d1 - wing_sigma * np.sqrt(T)
 
-    base_prob = norm.cdf(-d2)
+    prob_Q = float(norm.cdf(-d2))
 
-    # Skew slope adjustment for probability mass concentration in the wing
-    skew_slope_adjustment = 0.85
-    prob_Q = float(np.clip(base_prob * skew_slope_adjustment, 0.01, 0.99))
-
-    # 5. Physical Probability (CAPM Drift mu = r + beta * ERP)
+    # 5. Analytical Physical Scenario: Lognormal CDF + CAPM Drift (mu = r + beta * ERP - q)
     beta = 1.0
     if ticker_symbol == "SPY":
         beta = 1.0
@@ -116,7 +116,7 @@ def compute_half_drawdown_stats(ticker_symbol, r=DEFAULT_RISK_FREE_RATE):
     else:
         beta = tk.info.get('beta', 1.2) or 1.2
 
-    mu = r + (beta * 0.045)
+    mu = r + (beta * 0.045) - q
     E_ST_P = spot * np.exp(mu * T)
     d2_P = (np.log(E_ST_P / target_strike) - 0.5 * (wing_sigma**2) * T) / (wing_sigma * np.sqrt(T))
     prob_P = float(norm.cdf(-d2_P))
@@ -126,10 +126,12 @@ def compute_half_drawdown_stats(ticker_symbol, r=DEFAULT_RISK_FREE_RATE):
         "spot": spot,
         "target_strike": target_strike,
         "expiration": target_date_str,
+        "source_exp": src_exp or "N/A",
         "atm_iv": atm_sigma,
         "wing_iv": wing_sigma,
         "prob_Q": prob_Q,
-        "prob_P": prob_P
+        "prob_P": prob_P,
+        "is_fallback": is_fallback
     }
 
 def update_history_csv(today_str, results):
@@ -162,12 +164,11 @@ def format_chart_payload(history_df):
     valid_df = history_df.dropna(subset=["date", "ticker", "prob_Q"]).copy()
     unique_dates = sorted(valid_df["date"].unique().tolist())
     
-    # 11 distinct high-contrast colors; AAPL set to deep dark orange #FF8C00
     palette = {
         "NVDA": "#00FF00",  # Green
         "GOOG": "#FF00FF",  # Magenta
         "MSFT": "#000000",  # Black
-        "AAPL": "#FF0000",  # Red
+        "AAPL": "#FF8C00",  # Dark Orange
         "AMZN": "#FF8D1A",  # Orange
         "META": "#00BFFF",  # Cyan
         "TSLA": "#8A2BE2",  # Purple
@@ -178,7 +179,7 @@ def format_chart_payload(history_df):
     }
     
     fallback_colors = [
-        "#00FF00",  "#FF00FF",  "#000000",  "#FF0000",  "#FF8D1A",
+        "#00FF00",  "#FF00FF",  "#000000",  "#FF8C00",  "#FF8D1A",
         "#00BFFF",  "#8A2BE2",  "#475569",  "#b45309",  "#1d4ed8", "#047857"
     ]
     
@@ -225,7 +226,8 @@ if __name__ == "__main__":
             data = compute_half_drawdown_stats(ticker, r=current_r)
             if data:
                 results.append(data)
-                print(f"Processed {ticker:4s}: Spot=${data['spot']:7.2f}, Target={data['expiration']}, Q={data['prob_Q']*100:4.1f}%, P={data['prob_P']*100:4.1f}%")
+                fb_note = " [FALLBACK]" if data["is_fallback"] else ""
+                print(f"Processed {ticker:4s}: Spot=${data['spot']:7.2f}, Exp={data['source_exp']}, Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}%{fb_note}")
         except Exception as e:
             print(f"Failed processing {ticker}: {e}")
 

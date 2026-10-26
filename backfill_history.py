@@ -16,22 +16,25 @@ DEFAULT_RISK_FREE_RATE = 0.039  # Fallback if rate data is missing
 DIVIDEND_YIELD = 0.005
 VRP_MULTIPLIER = 1.12    # Implied volatility premium over realized volatility
 SKEW_MULTIPLIER = 1.18   # Downside wing skew multiplier for 50% OTM strike
-SKEW_ADJUSTMENT = 0.85   # Density slope adjustment factor
 
 def generate_monthly_dates(start_year=2021):
-    """Generates a list of the 15th of each month from start_year through last month."""
+    """Generates a list of the 15th of each month from start_year through last month (Sep 2026)."""
     dates = []
     now = datetime.now()
     for year in range(start_year, now.year + 1):
         for month in range(1, 13):
-            # Stop before the current month to allow the daily cron to handle live entries
+            # Stop before current month so live daily cron handles Oct 2026 onward
             if year == now.year and month >= now.month:
                 break
             dates.append(datetime(year, month, 15))
     return dates
 
 def get_historical_2y_rates():
-    """Fetches daily historical 2-Year US Treasury yields (Yahoo ticker: 2YY=F)."""
+    """
+    Fetches daily historical 2-Year US Treasury yields (Yahoo ticker: 2YY=F).
+    Note: 2YY=F futures launched in mid-August 2021. For earlier dates (Jan-Jul 2021),
+    we match the contemporaneous Federal Reserve 2-Year Constant Maturity rate (~0.15%).
+    """
     try:
         print("Downloading historical 2-Year Treasury yields (2YY=F)...")
         treasury = yf.Ticker("2YY=F")
@@ -71,8 +74,7 @@ def run_backfill():
             # 63 trading days (~3 calendar months) rolling annualized realized volatility
             df["Vol_63d"] = df["Log_Return"].rolling(window=63).std() * np.sqrt(252)
 
-            # Retrieve or default beta
-            beta = 1.0
+            # Beta selection
             if ticker == "SPY":
                 beta = 1.0
             elif ticker == "QQQ":
@@ -96,28 +98,29 @@ def run_backfill():
                 if np.isnan(realized_vol) or realized_vol <= 0:
                     continue
 
-                # Match 2-Year Treasury rate at sample date
-                r = DEFAULT_RISK_FREE_RATE
-                if rates_series is not None:
+                # Contemporaneous 2-Year Treasury rate determination
+                # For pre-August 2021 (before 2YY=F futures launched), 2Y yield was ~0.15% (0.0015)
+                r = 0.0015 if sample_date < datetime(2021, 8, 16) else DEFAULT_RISK_FREE_RATE
+                if rates_series is not None and sample_date >= datetime(2021, 8, 16):
                     rate_sub = rates_series[rates_series.index <= sample_date]
                     if not rate_sub.empty and not np.isnan(rate_sub.iloc[-1]):
                         r = float(rate_sub.iloc[-1])
 
-                # Proxy implied volatility via VRP + downside skew
+                # Volatility proxy via VRP + downside wing skew
                 atm_sigma = realized_vol * VRP_MULTIPLIER
                 wing_sigma = atm_sigma * SKEW_MULTIPLIER
 
-                # Black-Scholes Risk-Neutral Probability Q(S_T <= K)
+                # Black-Scholes Risk-Neutral Probability Q(S_T <= K) (Unclipped, unskewed by 0.85)
                 T = HORIZON_YEARS
                 target_strike = round(spot / 2.0, 2)
                 F = spot * np.exp((r - DIVIDEND_YIELD) * T)
 
                 d1 = (np.log(spot / target_strike) + (r - DIVIDEND_YIELD + 0.5 * wing_sigma**2) * T) / (wing_sigma * np.sqrt(T))
                 d2 = d1 - wing_sigma * np.sqrt(T)
-                prob_Q = float(np.clip(norm.cdf(-d2) * SKEW_ADJUSTMENT, 0.01, 0.99))
+                prob_Q = float(norm.cdf(-d2))
 
-                # Physical Probability P(S_T <= K) with CAPM drift mu = r + beta * ERP
-                mu = r + (beta * 0.045)
+                # Analytical Scenario: Lognormal CDF + CAPM Drift (mu = r + beta * ERP - q)
+                mu = r + (beta * 0.045) - DIVIDEND_YIELD
                 E_ST_P = spot * np.exp(mu * T)
                 d2_P = (np.log(E_ST_P / target_strike) - 0.5 * (wing_sigma**2) * T) / (wing_sigma * np.sqrt(T))
                 prob_P = float(norm.cdf(-d2_P))
@@ -141,7 +144,7 @@ def run_backfill():
     backfill_df = pd.DataFrame(rows)
     backfill_df = backfill_df.sort_values(by=["date", "ticker"]).reset_index(drop=True)
     backfill_df.to_csv(HISTORY_FILE, index=False)
-    print(f"\nDone! Wrote fresh history with {len(backfill_df)} records to {HISTORY_FILE}.")
+    print(f"\nDone! Wrote clean backfilled history with {len(backfill_df)} records to {HISTORY_FILE}.")
 
 if __name__ == "__main__":
     run_backfill()
