@@ -168,19 +168,19 @@ def format_chart_payload(history_df):
         "NVDA": "#00FF00",  # Green
         "GOOG": "#FF00FF",  # Magenta
         "MSFT": "#000000",  # Black
-        "AAPL": "#FF8C00",  # Dark Orange
-        "AMZN": "#FF8D1A",  # Orange
+        "AAPL": "#FF0000",  # Red
+        "AMZN": "#FF8C00",  # Orange
         "META": "#00BFFF",  # Cyan
         "TSLA": "#8A2BE2",  # Purple
-        "SPCX": "#475569",  # Slate
+        "SPCX": "#888888",  # Slate
         "SPY":  "#b45309",  # Deep Ochre Brown
-        "QQQ":  "#1d4ed8",  # Deep Cobalt Blue
+        "QQQ":  "#0000FF",  # Blue
         "DIA":  "#047857"   # Dark Forest Green
     }
     
     fallback_colors = [
-        "#00FF00",  "#FF00FF",  "#000000",  "#FF8C00",  "#FF8D1A",
-        "#00BFFF",  "#8A2BE2",  "#475569",  "#b45309",  "#1d4ed8", "#047857"
+        "#00FF00",  "#FF00FF",  "#000000",  "#FF0000",  "#FF8C00",
+        "#00BFFF",  "#8A2BE2",  "#475569",  "#b45309",  "#0000FF", "#047857"
     ]
     
     datasets = []
