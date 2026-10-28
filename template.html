@@ -142,6 +142,12 @@
         <div class="formula-card">
             <img src="explain6.svg" alt="Physical Tail Probability Evaluation with CAPM Drift" />
         </div>
+
+        <h4>8. Alternative Metric: Fall Off 52 Week High</h4>
+        <p>
+            One conceptual flaw -- or challenge -- in the metric is that, if a share price fell 50%, the likelihood of a further 50% fall might be quite low, when we might want to score that as a bubble burst.  The chart as given provides the likelihood of a further drop, and assuming efficient markets (which <a href="https://en.wikipedia.org/wiki/Efficient-market_hypothesis#Empirical_studies" target ="_blank">you should not</a>), the current price summarizes all known information, so the present metric would be a sensible summary of the likelihood of a bursting bubble.  If, instead, we want to assess the probability that the bubble will or has burst, a more sensible metric is the probability of a 50% fall from the peak.  Using the same methodology already described, but with the target share price being half of the 52 week high, you can see the output of that computation at <a href="index52.html" target="_blank">here</a>.  That chart looks so similar -- just scaled up -- that it gave me comfort that the existing metric is reasonable.  If you are mostly thinking "Are my existing investments safe-ish?", you would use the current price as a target, while if you are asking "Are we in the middle of a meltdown?", judging based on the 52 week high makes more sense.  The python code I used for the 52 week high is <a href="backfill_history52.py" target="_blank">here</a>.
+        </p>
+
     </div>
 
     <footer>
