@@ -171,23 +171,23 @@ def format_chart_payload(history_df):
         "AAPL": "#FF0000",  # Red
         "AMZN": "#FF8C00",  # Orange
         "META": "#00BFFF",  # Cyan
-        "TSLA": "#8A2BE2",  # Purple
+        "TSLA": "#8A00FF",  # Purple
         "SPCX": "#888888",  # Slate
-        "ANT": "#FFFF00",  # Yellow
+        "ANT": "#FF9AFF",  # Light Purple
         "SPY":  "#b45309",  # Deep Ochre Brown
-        "QQQ":  "#0000FF",  # Blue
+        "QQQ":  "#00009A",  # Dark Blue
         "DIA":  "#047857"   # Dark Forest Green
     }
     
     fallback_colors = [
         "#00FF00",  "#FF00FF",  "#000000",  "#FF0000",  "#FF8C00", "#00BFFF",
-        "#8A2BE2",  "#475569", "FFFF00",  "#b45309",  "#0000FF", "#047857"
+        "#8A00FF",  "#888888", "#FF9AFF",  "#b45309",  "#00009A", "#047857"
     ]
     
     datasets = []
     for idx, ticker in enumerate(TICKERS):
         sub = valid_df[valid_df["ticker"] == ticker].set_index("date")
-        series = sub["prob_Q"].reindex(unique_dates).tolist()
+        series = [None if pd.isna(v) else float(v) for v in sub["prob_Q"].reindex(unique_dates)]
         color = palette.get(ticker, fallback_colors[idx % len(fallback_colors)])
         
         datasets.append({
