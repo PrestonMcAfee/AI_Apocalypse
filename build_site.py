@@ -9,8 +9,8 @@ import jinja2
 
 # Configuration
 TICKERS = [
-    "NVDA", "GOOG", "MSFT", "AAPL", "AMZN", 
-    "META", "TSLA", "SPCX", "ANT", "SPY", "QQQ", "DIA"
+    "NVDA", "GOOG", "MSFT", "AAPL", "AMZN", "META",
+    "TSLA", "SPCX", "ANT", "SPY", "QQQ", "DIA"
 ]
 OUTPUT_FILE = "index.html"
 HISTORY_FILE = "history.csv"
@@ -173,15 +173,16 @@ def format_chart_payload(history_df):
         "META": "#00BFFF",  # Cyan
         "TSLA": "#8A2BE2",  # Purple
         "SPCX": "#888888",  # Slate
-        "ANT": "#FFFF00",  # Yellow
+        "ANT": "#e79aff",  # Light Purple
         "SPY":  "#b45309",  # Deep Ochre Brown
         "QQQ":  "#0000FF",  # Blue
         "DIA":  "#047857"   # Dark Forest Green
     }
-    
+
+   
     fallback_colors = [
         "#00FF00",  "#FF00FF",  "#000000",  "#FF0000",  "#FF8C00", "#00BFFF",
-        "#8A2BE2",  "#475569", "FFFF00",  "#b45309",  "#0000FF", "#047857"
+        "#8A2BE2",  "#475569", "e79aff",  "#b45309",  "#0000FF", "#047857"
     ]
     
     datasets = []
