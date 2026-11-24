@@ -82,7 +82,7 @@
     <div style="font-size:0.85rem;margin-bottom:8px;">
         <label><input type="radio" name="priceMode" value="price" checked> Price (log scale)</label>
         &nbsp;&nbsp;
-        <label><input type="radio" name="priceMode" value="indexed"> Indexed to 100 at each ticker's first date</label>
+        <label><input type="radio" name="priceMode" value="indexed"> <span id="indexedLabel">Indexed to 100</span></label>
     </div>
     <div class="chart-card">
         <canvas id="priceChart" style="height: 500px;"></canvas>
@@ -250,10 +250,19 @@
         // Share prices: same dates and colors as the probability charts
         const priceData = {{ price_json | safe }};
         const rawPrices = priceData.datasets.map(d => d.data.slice());
-        const indexedPrices = rawPrices.map(arr => {
-            const first = arr.find(v => v !== null);
-            return arr.map(v => (v === null || !first) ? null : 100 * v / first);
+        // Index to the 2015 base close where available; otherwise to the ticker's first date on the chart
+        const indexBase = {{ index_base_json | safe }};
+        const baseDay = indexBase.first_trading_day || indexBase.base_date;
+        const fmtDay = new Date(baseDay + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        const lateStarters = [];
+        const indexedPrices = rawPrices.map((arr, i) => {
+            const ticker = priceData.datasets[i].label.split(' ')[0];
+            let base = (indexBase.prices || {})[ticker];
+            if (!base) { base = arr.find(v => v !== null); if (base) lateStarters.push(ticker); }
+            return arr.map(v => (v === null || !base) ? null : 100 * v / base);
         });
+        document.getElementById('indexedLabel').textContent = 'Indexed to 100 on ' + fmtDay +
+            (lateStarters.length ? ' (' + lateStarters.join(', ') + ': first date shown)' : '');
         const priceChart = new Chart(document.getElementById('priceChart').getContext('2d'), {
             type: 'line',
             plugins: [liveStartMarker],
@@ -280,7 +289,7 @@
             priceChart.$indexed = idx;
             priceChart.data.datasets.forEach((d, i) => d.data = (idx ? indexedPrices : rawPrices)[i]);
             const y = priceChart.options.scales.y;
-            y.title.text = idx ? 'Indexed (first date = 100, log scale)' : 'Share Price ($, log scale)';
+            y.title.text = idx ? 'Indexed (' + fmtDay + ' = 100, log scale)' : 'Share Price ($, log scale)';
             y.ticks.callback = v => { const s = String(v)[0];
                 return (s === '1' || s === '2' || s === '5') ? (idx ? v : '$' + v) : ''; };
             priceChart.update();

@@ -56,7 +56,7 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          for f in history.csv history52.csv skew_curve.csv last_run.json; do [ -f "$f" ] && git add "$f"; done
+          for f in history.csv history52.csv skew_curve.csv last_run.json index_base.json; do [ -f "$f" ] && git add "$f"; done
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: record daily probability snapshot [skip ci]" && git push)
 
       - name: Setup Pages

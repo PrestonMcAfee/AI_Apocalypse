@@ -37,7 +37,9 @@ HISTORY_FILE = "history.csv"          # 50% of current price
 HISTORY52_FILE = "history52.csv"      # 50% of 52-week high
 SKEW_FILE = "skew_curve.csv"
 LAST_RUN_FILE = "last_run.json"       # quality of the best run for the latest market date
-RUN_WINDOW_ET = ("10:00", "15:55")    # scheduled runs only while option quotes are live          # effective vol by moneyness (calibrates the backfill)
+RUN_WINDOW_ET = ("10:00", "15:55")
+INDEX_BASE_DATE = "2015-01-01"        # price chart "indexed" view: 100 = first close on/after this date
+INDEX_BASE_FILE = "index_base.json"   # base prices, fetched once from Yahoo and cached    # scheduled runs only while option quotes are live          # effective vol by moneyness (calibrates the backfill)
 SKEW_GRID = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]   # K / spot
 TEMPLATE_FILE = "template.html"
 HORIZON_YEARS = 2.0
@@ -515,6 +517,39 @@ def format_chart_payload(history_df, label_suffix="Q(S <= 50%)", value_col="prob
     return json.dumps({"labels": unique_dates, "datasets": datasets, "liveStart": live_start})
 
 
+def get_index_base():
+    """
+    Close on the first trading day on/after INDEX_BASE_DATE for each ticker
+    (split-adjusted, matching the spot prices in history.csv). Cached in
+    INDEX_BASE_FILE; refetched only if the base date or ticker list changes.
+    Tickers that did not trade then get null and are indexed to their first
+    date on the chart instead.
+    """
+    try:
+        with open(INDEX_BASE_FILE) as f:
+            cached = json.load(f)
+        if cached.get("base_date") == INDEX_BASE_DATE and set(cached.get("prices", {})) >= set(TICKERS):
+            return cached
+    except Exception:
+        pass
+    start = pd.Timestamp(INDEX_BASE_DATE)
+    prices, actual = {}, None
+    for t in TICKERS:
+        prices[t] = None
+        try:
+            h = yf.Ticker(t).history(start=start, end=start + pd.Timedelta(days=10), auto_adjust=False)
+            if not h.empty:
+                prices[t] = round(float(h["Close"].iloc[0]), 6)
+                actual = actual or h.index[0].strftime("%Y-%m-%d")
+        except Exception as e:
+            print(f"  index base for {t} unavailable ({e})")
+    base = {"base_date": INDEX_BASE_DATE, "first_trading_day": actual, "prices": prices}
+    if any(v is not None for v in prices.values()):
+        with open(INDEX_BASE_FILE, "w") as f:
+            json.dump(base, f, indent=1)
+    return base
+
+
 def render_site(table_rows, history_df, history52_df, market_date):
     with open(TEMPLATE_FILE, "r") as f:
         template = jinja2.Template(f.read())
@@ -523,6 +558,7 @@ def render_site(table_rows, history_df, history52_df, market_date):
         chart_json=format_chart_payload(history_df),
         chart52_json=format_chart_payload(history52_df, "Q(S <= 50% of high)"),
         price_json=format_chart_payload(history_df, "price", value_col="spot"),
+        index_base_json=json.dumps(get_index_base()),
         market_date=market_date.strftime("%Y-%m-%d"),
         timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
     )
@@ -635,7 +671,8 @@ def main():
         return
     if not overwrite and last.get("market_date") == date_str and n_clean < last.get("n_clean", 0):
         print(f"An earlier run today had better data ({last['n_clean']} clean tickers); keeping it.")
-        set_output("updated", "false")
+        # Manual runs still republish the page (e.g. after a template change)
+        set_output("updated", "true" if (force and render_from_saved()) else "false")
         return
 
     hist_df, hist52_df = update_history_files(date_str, results)
