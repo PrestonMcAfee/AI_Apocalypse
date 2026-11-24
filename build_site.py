@@ -484,8 +484,8 @@ PALETTE = {
 }
 
 
-def format_chart_payload(history_df, label_suffix="Q(S <= 50%)"):
-    valid_df = history_df.dropna(subset=["date", "ticker", "prob_Q"]).copy()
+def format_chart_payload(history_df, label_suffix="Q(S <= 50%)", value_col="prob_Q"):
+    valid_df = history_df.dropna(subset=["date", "ticker", value_col]).copy()
     unique_dates = sorted(valid_df["date"].unique().tolist())
 
     live_start = None
@@ -497,7 +497,7 @@ def format_chart_payload(history_df, label_suffix="Q(S <= 50%)"):
     datasets = []
     for ticker in TICKERS:
         sub = valid_df[valid_df["ticker"] == ticker].set_index("date")
-        series = sub["prob_Q"].reindex(unique_dates)
+        series = sub[value_col].reindex(unique_dates)
         series = [None if pd.isna(v) else float(v) for v in series]
         color = PALETTE.get(ticker, "#666666")
         datasets.append({
@@ -515,13 +515,14 @@ def format_chart_payload(history_df, label_suffix="Q(S <= 50%)"):
     return json.dumps({"labels": unique_dates, "datasets": datasets, "liveStart": live_start})
 
 
-def render_site(table_rows, chart_payload_json, chart52_payload_json, market_date):
+def render_site(table_rows, history_df, history52_df, market_date):
     with open(TEMPLATE_FILE, "r") as f:
         template = jinja2.Template(f.read())
     rendered = template.render(
         rows=table_rows,
-        chart_json=chart_payload_json,
-        chart52_json=chart52_payload_json,
+        chart_json=format_chart_payload(history_df),
+        chart52_json=format_chart_payload(history52_df, "Q(S <= 50% of high)"),
+        price_json=format_chart_payload(history_df, "price", value_col="spot"),
         market_date=market_date.strftime("%Y-%m-%d"),
         timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
     )
@@ -562,8 +563,7 @@ def render_from_saved():
         return False
     h = pd.read_csv(HISTORY_FILE)
     h52 = pd.read_csv(HISTORY52_FILE) if os.path.exists(HISTORY52_FILE) else h.iloc[0:0]
-    render_site(rows, format_chart_payload(h), format_chart_payload(h52, "Q(S <= 50% of high)"),
-                pd.Timestamp(last["market_date"]).date())
+    render_site(rows, h, h52, pd.Timestamp(last["market_date"]).date())
     print(f"Rendered {OUTPUT_FILE} from saved run of {last['market_date']}.")
     return True
 
@@ -639,8 +639,7 @@ def main():
         return
 
     hist_df, hist52_df = update_history_files(date_str, results)
-    render_site(results, format_chart_payload(hist_df),
-                format_chart_payload(hist52_df, "Q(S <= 50% of high)"), market_date)
+    render_site(results, hist_df, hist52_df, market_date)
     with open(LAST_RUN_FILE, "w") as f:
         json.dump({"market_date": date_str, "n_clean": n_clean, "n_priced": len(priced),
                    "n_errors": n_errors, "complete": complete,
