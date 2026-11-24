@@ -36,7 +36,8 @@ OUTPUT_FILE = "index.html"
 HISTORY_FILE = "history.csv"          # 50% of current price
 HISTORY52_FILE = "history52.csv"      # 50% of 52-week high
 SKEW_FILE = "skew_curve.csv"
-LAST_RUN_FILE = "last_run.json"       # quality of the best run for the latest market date          # effective vol by moneyness (calibrates the backfill)
+LAST_RUN_FILE = "last_run.json"       # quality of the best run for the latest market date
+RUN_WINDOW_ET = ("10:00", "15:55")    # scheduled runs only while option quotes are live          # effective vol by moneyness (calibrates the backfill)
 SKEW_GRID = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]   # K / spot
 TEMPLATE_FILE = "template.html"
 HORIZON_YEARS = 2.0
@@ -575,12 +576,23 @@ def main():
     - Otherwise compute, and write only if this run is at least as good as
       the best earlier run for the same date (so a late run with stale
       after-hours quotes cannot overwrite a good mid-session snapshot).
-    Set FORCE_RUN=1 to skip the first check (the second still applies).
+    Scheduled runs also exit outside RUN_WINDOW_ET (US/Eastern), which keeps
+    them out of pre-market and after-hours regardless of daylight saving time
+    or GitHub start delays.
+    FORCE_RUN=1 (manual runs) skips the window and the already-complete check.
+    OVERWRITE=1 additionally replaces today's data even if an earlier run was cleaner.
     """
     if "--render-only" in sys.argv:
         set_output("updated", "true" if render_from_saved() else "false")
         return
-    force = os.environ.get("FORCE_RUN", "").lower() in ("1", "true", "yes")
+    truthy = ("1", "true", "yes")
+    force = os.environ.get("FORCE_RUN", "").lower() in truthy
+    overwrite = os.environ.get("OVERWRITE", "").lower() in truthy
+    now_et = pd.Timestamp.now(tz="America/New_York")
+    if not force and not (RUN_WINDOW_ET[0] <= now_et.strftime("%H:%M") <= RUN_WINDOW_ET[1]):
+        print(f"{now_et:%H:%M} ET is outside the run window {RUN_WINDOW_ET}; nothing to do.")
+        set_output("updated", "false")
+        return
     market_date = get_market_date()
     date_str = market_date.strftime("%Y-%m-%d")
     last = load_last_run()
@@ -621,7 +633,7 @@ def main():
         print("No results gathered. Files not updated.")
         set_output("updated", "false")
         return
-    if last.get("market_date") == date_str and n_clean < last.get("n_clean", 0):
+    if not overwrite and last.get("market_date") == date_str and n_clean < last.get("n_clean", 0):
         print(f"An earlier run today had better data ({last['n_clean']} clean tickers); keeping it.")
         set_output("updated", "false")
         return

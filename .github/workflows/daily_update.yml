@@ -1,15 +1,23 @@
 name: Daily Drawdown Probability Update
 
-# Up to four attempts each weekday afternoon, while option quotes are live.
-# Times are UTC: 18:07-21:07 = 1:07-4:07pm EST (2:07-5:07pm EDT in summer).
-# build_site.py exits immediately once the day has a complete run, so in
-# practice the first attempt does the work and the rest are cheap retries.
-# A later run can never overwrite an earlier, cleaner snapshot for the day.
-# Manual "Run workflow" forces a fresh calculation (same no-downgrade rule).
+# Hourly attempts each weekday at :07 past the hour. The cron covers both
+# EST and EDT; build_site.py itself exits outside 10:00-15:55 US/Eastern, so
+# the effective attempts are 10:07am-3:07pm Eastern all year (six tries).
+# build_site.py also exits once the day has a complete run, and a later run
+# never overwrites an earlier, cleaner snapshot for the same day.
+#
+# Manual "Run workflow": always recalculates (ignores the time window and the
+# already-complete check). Tick "overwrite" to replace today's data even if an
+# earlier run was cleaner. No need to delete rows from the history files.
 on:
   schedule:
-    - cron: '7 18-21 * * 1-5'
+    - cron: '7 14-20 * * 1-5'
   workflow_dispatch:
+    inputs:
+      overwrite:
+        description: "Replace today's data even if an earlier run today was cleaner"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -40,6 +48,7 @@ jobs:
         id: build
         env:
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+          OVERWRITE: ${{ github.event_name == 'workflow_dispatch' && inputs.overwrite }}
         run: python build_site.py
 
       - name: Commit and push updated history files
