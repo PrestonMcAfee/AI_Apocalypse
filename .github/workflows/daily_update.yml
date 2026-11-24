@@ -40,7 +40,9 @@ jobs:
       - name: Check if site was updated
         id: site_check
         run: |
-          if git diff --quiet index.html && git diff --quiet history.csv; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet index.html && git diff --quiet history.csv; then
             echo "updated=false" >> "$GITHUB_OUTPUT"
             echo "No valid market update produced (overnight/stale quotes or today already complete). Skipping deploy."
           else
