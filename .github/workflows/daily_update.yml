@@ -69,7 +69,17 @@ jobs:
         with:
           path: '.'
 
+      # GitHub occasionally reports the just-uploaded artifact as missing; retry once.
       - name: Deploy to GitHub Pages
         if: steps.build.outputs.updated == 'true'
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retrying deploy
+        if: ${{ steps.build.outputs.updated == 'true' && steps.deployment.outcome == 'failure' }}
+        run: sleep 45
+
+      - name: Deploy to GitHub Pages (retry)
+        if: ${{ steps.build.outputs.updated == 'true' && steps.deployment.outcome == 'failure' }}
         uses: actions/deploy-pages@v4
