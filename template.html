@@ -62,12 +62,16 @@
                 <td><strong>{{ row.ticker }}</strong>{% if row.is_fallback %}<span class="fallback-flag" title="{{ row.flag_note }}">*</span>{% endif %}</td>
                 <td>${{ "%.2f"|format(row.spot) }}</td>
                 <td>${{ "%.2f"|format(row.target_strike) }}</td>
+                {% if row.no_options %}
+                <td colspan="6" style="text-align:center;color:#777;font-style:italic">No listed options yet &mdash; no market-implied probability</td>
+                {% else %}
                 <td>{{ row.expiration }}</td>
                 <td style="font-size:0.8rem">{{ row.source_exp }}</td>
                 <td>{{ "%.1f"|format(row.atm_iv * 100) }}%</td>
                 <td>{{ "%.1f"|format(row.wing_iv * 100) }}%</td>
                 <td class="highlight">{{ "%.2f"|format(row.prob_Q * 100) }}%</td>
                 <td>{{ "%.2f"|format(row.prob_P * 100) }}%</td>
+                {% endif %}
             </tr>
             {% endfor %}
         </tbody>

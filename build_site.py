@@ -355,8 +355,10 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
 
     surf = two_year_smile(tk, spot, market_date, r, q_guess)
     if surf is None:
-        print(f"  {ticker_symbol}: no usable option chain; skipped.")
-        return None
+        n_exp = len(tk.options or [])
+        print(f"  {ticker_symbol}: no usable option chain ({n_exp} expiries listed); no probability recorded.")
+        return {"ticker": ticker_symbol, "spot": spot, "target_strike": round(K, 2),
+                "no_options": True, "is_fallback": False, "flag_note": ""}
 
     F, T, sigma_at = surf["F"], surf["T"], surf["sigma_at"]
     prob_Q = bl_prob_below(F, K, T, r, sigma_at)
@@ -380,6 +382,7 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
         "sigma_eff": effective_sigma(F, K, T, prob_Q),
         "prob_Q": prob_Q,
         "prob_P": prob_P,
+        "no_options": False,
         "is_fallback": surf["extrapolated"] or surf["used_last"],
         "flag_note": "; ".join(filter(None, [
             f"longest listed expiry is {surf['max_listed_T']:.2f}y, extrapolated to 2y" if surf["extrapolated"] else "",
@@ -401,7 +404,7 @@ def update_history_csv(date_str, results):
         "prob_P": round(res["prob_P"] * 100, 2),
         "sigma_eff": round(res["sigma_eff"], 4) if np.isfinite(res["sigma_eff"]) else np.nan,
         "method": "options",
-    } for res in results]
+    } for res in results if not res.get("no_options")]
 
     new_df = pd.DataFrame(rows)
     if os.path.exists(HISTORY_FILE) and os.path.getsize(HISTORY_FILE) > 0:
@@ -480,7 +483,9 @@ if __name__ == "__main__":
     for ticker in TICKERS:
         try:
             data = compute_half_drawdown_stats(ticker, market_date, r=current_r)
-            if data:
+            if data and data.get("no_options"):
+                results.append(data)
+            elif data:
                 results.append(data)
                 note = f" [{data['flag_note']}]" if data["flag_note"] else ""
                 print(f"Processed {ticker:4s}: Spot=${data['spot']:8.2f}, Exp={data['source_exp']}, "
@@ -489,7 +494,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Failed processing {ticker}: {e}")
 
-    if results:
+    if any(not r.get("no_options") for r in results):
         hist_df = update_history_csv(date_str, results)
         render_site(results, format_chart_payload(hist_df), market_date)
         print(f"\nSuccessfully wrote {OUTPUT_FILE} and updated {HISTORY_FILE}.")
