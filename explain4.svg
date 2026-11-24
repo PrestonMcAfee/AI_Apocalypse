@@ -9,6 +9,6 @@
     .sup { font-size: 11px; }
   </style>
   <rect width="820" height="130" fill="#ffffff" rx="6" />
-  <text x="25" y="48"><tspan class="label">Downside Wing Volatility: </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal"> = 1.18 × σ</tspan><tspan class="sub">ATM</tspan></text>
-  <text x="25" y="90"><tspan class="desc">Captures structural implied volatility smile for deep 50% out-of-the-money puts over a 2-year horizon.</tspan></text>
+  <text x="25" y="48"><tspan class="label">Risk-Neutral Tail Probability: </tspan><tspan class="math">Q</tspan><tspan class="math-normal">(</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal"> ≤ </tspan><tspan class="math">K</tspan><tspan class="math-normal">) = </tspan><tspan class="math">e</tspan><tspan class="sup">rT</tspan><tspan class="math-normal"> ∂</tspan><tspan class="math">Put</tspan><tspan class="math-normal">(</tspan><tspan class="math">K</tspan><tspan class="math-normal">, </tspan><tspan class="math">T</tspan><tspan class="math-normal">)/∂</tspan><tspan class="math">K</tspan><tspan class="math-normal">,  </tspan><tspan class="math">K</tspan><tspan class="math-normal"> = 0.5 </tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan></text>
+  <text x="25" y="92"><tspan class="math-normal">= N(−</tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="math-normal">) + </tspan><tspan class="math">e</tspan><tspan class="sup">rT</tspan><tspan class="math-normal"> · Vega · ∂σ/∂</tspan><tspan class="math">K</tspan><tspan class="desc">     (the second term is the skew correction)</tspan></text>
 </svg>

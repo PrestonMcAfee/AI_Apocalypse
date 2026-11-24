@@ -1,0 +1,59 @@
+name: Recalibrate Historical Backfill
+
+# Manual only. Recomputes the realized-volatility history, calibrated to the
+# live option-based rows already in history.csv, then rebuilds the site.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  backfill-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Record today's option-based snapshot (needed for calibration)
+        run: python build_site.py
+
+      - name: Recalibrate and rewrite history
+        run: python backfill_history.py
+
+      - name: Rebuild site with recalibrated history
+        run: python build_site.py
+
+      - name: Commit and push updated history.csv
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add history.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: recalibrate historical backfill [skip ci]" && git push)
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

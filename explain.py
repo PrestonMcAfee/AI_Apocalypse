@@ -24,41 +24,50 @@ with open("explain1.svg", "w", encoding="utf-8") as f:
         ('<tspan class="label">Downside 50% Strike: </tspan><tspan class="math">K</tspan><tspan class="math-normal"> = 0.50 × </tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan>', 92)
     ], height=130))
 
+# Small helpers for the cards below
+def L(t): return f'<tspan class="label">{t}</tspan>'
+def M(t): return f'<tspan class="math">{t}</tspan>'
+def N(t): return f'<tspan class="math-normal">{t}</tspan>'
+def SB(t): return f'<tspan class="sub">{t}</tspan>'
+def SP(t): return f'<tspan class="sup">{t}</tspan>'
+def D(t): return f'<tspan class="desc">{t}</tspan>'
+
 # Card 2: Risk-Free Rate & Forward Price
 with open("explain2.svg", "w", encoding="utf-8") as f:
     f.write(make_svg([
-        ('<tspan class="label">Dynamic Risk-Free Rate: </tspan><tspan class="math">r</tspan><tspan class="math-normal"> = Yield(2YY=F) / 100</tspan>', 48),
-        ('<tspan class="label">Forward Equity Price: </tspan><tspan class="math">F</tspan><tspan class="math-normal"> = </tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan><tspan class="math"> e</tspan><tspan class="sup">(r − q)T</tspan><tspan class="math-normal">, where </tspan><tspan class="math">q</tspan><tspan class="math-normal"> = 0.005, </tspan><tspan class="math">T</tspan><tspan class="math-normal"> = 2.0</tspan>', 92)
-    ], height=130))
-
-# Card 3: Volatility Estimation Across Regimes
-with open("explain3.svg", "w", encoding="utf-8") as f:
-    f.write(make_svg([
-        ('<tspan class="label">Live Regime (Oct 2026+): </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">ATM</tspan><tspan class="math-normal"> = median(σ</tspan><tspan class="sub">LEAPS calls</tspan><tspan class="math-normal">, σ</tspan><tspan class="sub">LEAPS puts</tspan><tspan class="math-normal">)</tspan>', 42),
-        ('<tspan class="label">Historical Proxy (2021–2026): </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">RV</tspan><tspan class="math-normal"> = std(ln(</tspan><tspan class="math">S</tspan><tspan class="sub">τ</tspan><tspan class="math-normal">/</tspan><tspan class="math">S</tspan><tspan class="sub">τ−1</tspan><tspan class="math-normal">))</tspan><tspan class="sub">63d</tspan><tspan class="math-normal"> × √252</tspan>', 84),
-        ('<tspan class="label">Implied Volatility Scaling: </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">ATM</tspan><tspan class="math-normal"> ≈ σ</tspan><tspan class="sub">RV</tspan><tspan class="math-normal"> × VRP (with VRP = 1.12)</tspan>', 126)
+        (L("Dynamic Risk-Free Rate: ") + M("r") + N(" = Yield(2YY=F) / 100"), 42),
+        (L("Live Forward (put-call parity): ") + M("F") + N(" = ") + M("K") + N(" + ") + M("e") + SP("rT") + N("(") + M("C") + N(" − ") + M("P") + N("), near-the-money strikes"), 84),
+        (L("Historical Forward: ") + M("F") + N(" = ") + M("S") + SB("0") + M(" e") + SP("(r − q)T") + N(", ") + M("q") + N(" = trailing 12-month dividend yield"), 126),
     ], height=165))
 
-# Card 4: Downside Skew Modeling
+# Card 3: Live smile construction
+with open("explain3.svg", "w", encoding="utf-8") as f:
+    f.write(make_svg([
+        (L("Smile per expiry: ") + N("σ") + SB("i") + N("(") + M("k") + N(") fit to OTM put/call mids, ") + M("k") + N(" = ln(") + M("K") + N("/") + M("F") + N(")"), 42),
+        (L("Interpolate to 2 years: ") + N("σ(") + M("k") + N(")²·2 = (1−") + M("w") + N(")·σ₁(") + M("k") + N(")²·") + M("T") + N("₁ + ") + M("w") + N("·σ₂(") + M("k") + N(")²·") + M("T") + N("₂,   ") + M("T") + N("₁ ≤ 2 &lt; ") + M("T") + N("₂"), 84),
+        (D("If no expiry reaches 2 years: σ(k) at 2y = σ at the longest expiry, matched on k/√T (flagged *)."), 126),
+    ], height=165))
+
+# Card 4: Breeden-Litzenberger
 with open("explain4.svg", "w", encoding="utf-8") as f:
     f.write(make_svg([
-        ('<tspan class="label">Downside Wing Volatility: </tspan><tspan class="math-normal">σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal"> = 1.18 × σ</tspan><tspan class="sub">ATM</tspan>', 48),
-        ('<tspan class="desc">Captures structural implied volatility smile for deep 50% out-of-the-money puts over a 2-year horizon.</tspan>', 90)
+        (L("Risk-Neutral Tail Probability: ") + M("Q") + N("(") + M("S") + SB("T") + N(" ≤ ") + M("K") + N(") = ") + M("e") + SP("rT") + N(" ∂") + M("Put") + N("(") + M("K") + N(", ") + M("T") + N(")/∂") + M("K") + N(",  ") + M("K") + N(" = 0.5 ") + M("S") + SB("0"), 48),
+        (N("= N(−") + M("d") + SB("2") + N(") + ") + M("e") + SP("rT") + N(" · Vega · ∂σ/∂") + M("K") + D("     (the second term is the skew correction)"), 92),
     ], height=130))
 
-# Card 5: Risk-Neutral Tail Probability Q
+# Card 5: Historical calibration
 with open("explain5.svg", "w", encoding="utf-8") as f:
     f.write(make_svg([
-        ('<tspan class="label">Risk-Neutral Tail Probability: </tspan><tspan class="math">Q</tspan><tspan class="math-normal">(</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal"> ≤ </tspan><tspan class="math">K</tspan><tspan class="math-normal">) = N(−</tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="math-normal">)</tspan>', 48),
-        ('<tspan class="math-normal">where </tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="math-normal"> = [ ln(</tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan><tspan class="math-normal">/</tspan><tspan class="math">K</tspan><tspan class="math-normal">) + (</tspan><tspan class="math">r</tspan><tspan class="math-normal"> − </tspan><tspan class="math">q</tspan><tspan class="math-normal"> − ½σ</tspan><tspan class="sub">wing</tspan><tspan class="sup">2</tspan><tspan class="math-normal">)</tspan><tspan class="math">T</tspan><tspan class="math-normal"> ] / ( σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal">√</tspan><tspan class="math">T</tspan><tspan class="math-normal"> )</tspan>', 92)
-    ], height=130))
+        (L("Two-year volatility proxy: ") + N("σ") + SB("proxy") + N("² = 0.3 · (RV") + SB("63d") + N(")² + 0.7 · (RV") + SB("504d") + N(")²"), 42),
+        (L("Per-ticker multiplier: ") + M("m") + N(" = median over live days of σ") + SB("eff") + N(" / σ") + SB("proxy") + N(",  where N(−") + M("d") + SB("2") + N("(σ") + SB("eff") + N(")) = ") + M("Q") + SB("live"), 84),
+        (L("Historical probability: ") + M("Q") + N(" = N(−") + M("d") + SB("2") + N(") with σ = ") + M("m") + N(" · σ") + SB("proxy"), 126),
+    ], height=165))
 
 # Card 6: Physical Tail Probability P
 with open("explain6.svg", "w", encoding="utf-8") as f:
     f.write(make_svg([
-        ('<tspan class="label">Physical Equity Drift (CAPM): </tspan><tspan class="math-normal">μ = </tspan><tspan class="math">r</tspan><tspan class="math-normal"> + β × ERP − q, where ERP = 4.5%</tspan>', 42),
-        ('<tspan class="label">Expected Future Price: </tspan><tspan class="math">E</tspan><tspan class="sub">P</tspan><tspan class="math-normal">[</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal">] = </tspan><tspan class="math">S</tspan><tspan class="sub">0</tspan><tspan class="math"> e</tspan><tspan class="sup">μT</tspan>', 84),
-        ('<tspan class="label">Physical Tail Probability: </tspan><tspan class="math">P</tspan><tspan class="math-normal">(</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal"> ≤ </tspan><tspan class="math">K</tspan><tspan class="math-normal">) = N(−</tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="sup">P</tspan><tspan class="math-normal">), where </tspan><tspan class="math">d</tspan><tspan class="sub">2</tspan><tspan class="sup">P</tspan><tspan class="math-normal"> = [ ln(</tspan><tspan class="math">E</tspan><tspan class="sub">P</tspan><tspan class="math-normal">[</tspan><tspan class="math">S</tspan><tspan class="sub">T</tspan><tspan class="math-normal">]/</tspan><tspan class="math">K</tspan><tspan class="math-normal">) − ½σ</tspan><tspan class="sub">wing</tspan><tspan class="sup">2</tspan><tspan class="math">T</tspan><tspan class="math-normal"> ] / ( σ</tspan><tspan class="sub">wing</tspan><tspan class="math-normal">√</tspan><tspan class="math">T</tspan><tspan class="math-normal"> )</tspan>', 126)
-    ], height=165))
+        (L("Physical Equity Drift (CAPM): ") + N("μ = ") + M("r") + N(" + β × ERP − ") + M("q") + N(", where ERP = 4.5%"), 48),
+        (L("Physical Tail Probability: ") + M("P") + N("(") + M("S") + SB("T") + N(" ≤ ") + M("K") + N(") = ") + M("Q") + N("(") + M("S") + SB("T") + N(" ≤ ") + M("K") + N("·") + M("e") + SP("−β·ERP·T") + N(")"), 92),
+    ], height=130))
 
 print("Created explain1.svg through explain6.svg.")

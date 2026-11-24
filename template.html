@@ -35,7 +35,7 @@
 </head>
 <body>
     <h2>Tech Apocalypse: Probability of 50% Share Price Drop Two Years From Today</h2>
-    <p class="sub">Tracks market-implied risk-neutral probability over a rolling 2-year horizon via liquid ATM LEAPS volatility and downside skew modeling.</p>
+    <p class="sub">Tracks the market-implied (risk-neutral) probability of a 50% decline over a rolling 2-year horizon, read directly from the prices of long-dated put options. Prices as of market close {{ market_date }}.</p>
 
     <div class="chart-card">
         <canvas id="historyChart" style="height: 600px;"></canvas>
@@ -49,8 +49,9 @@
                 <th>Spot Price</th>
                 <th>50% Strike (K)</th>
                 <th>Target (2Y Hence)</th>
-                <th>ATM IV</th>
-                <th>Wing IV</th>
+                <th>Expiries Used</th>
+                <th>2Y ATM IV</th>
+                <th>2Y IV at K</th>
                 <th>Risk-Neutral Q(S &le; K)</th>
                 <th>Lognormal + CAPM Drift P(S &le; K)</th>
             </tr>
@@ -58,10 +59,11 @@
         <tbody>
             {% for row in rows %}
             <tr>
-                <td><strong>{{ row.ticker }}</strong>{% if row.is_fallback %}<span class="fallback-flag" title="Option chain unavailable; using 35% volatility fallback">*</span>{% endif %}</td>
+                <td><strong>{{ row.ticker }}</strong>{% if row.is_fallback %}<span class="fallback-flag" title="{{ row.flag_note }}">*</span>{% endif %}</td>
                 <td>${{ "%.2f"|format(row.spot) }}</td>
                 <td>${{ "%.2f"|format(row.target_strike) }}</td>
                 <td>{{ row.expiration }}</td>
+                <td style="font-size:0.8rem">{{ row.source_exp }}</td>
                 <td>{{ "%.1f"|format(row.atm_iv * 100) }}%</td>
                 <td>{{ "%.1f"|format(row.wing_iv * 100) }}%</td>
                 <td class="highlight">{{ "%.2f"|format(row.prob_Q * 100) }}%</td>
@@ -70,6 +72,7 @@
             {% endfor %}
         </tbody>
     </table>
+    <p style="font-size:0.8rem;color:#666;margin-top:6px;">* Hover for details: either no listed option reaches two years (the smile is extended from the longest expiry), or some option prices are last trades rather than bid/ask mids.</p>
 
     <div class="methodology">
         <h3>Methodology & Operational Framework</h3>
@@ -97,47 +100,39 @@
 
         <h4>3. The Dynamic Risk-Free Rate and Forward Price</h4>
         <p>
-            The risk-free interest rate (r) is mapped dynamically to the active market yield of the <strong>2-Year US Treasury note (Yahoo ticker: <code>2YY=F</code>)</strong>. Aligning the discount rate with the contract duration captures macroeconomic shifts, from the 0.15% rate environment of early 2021 to the higher yield regime of 2023–2026. For dates prior to the launch of 2YY=F futures in mid-August 2021, the historical rate matches the contemporaneous Federal Reserve 2-Year Constant Maturity Treasury yield. Forward prices incorporate this rate alongside an annualized dividend yield approximation (q = 0.5%).
+            The risk-free interest rate (r) is mapped dynamically to the active market yield of the <strong>2-Year US Treasury note (Yahoo ticker: <code>2YY=F</code>)</strong>. For dates prior to the launch of 2YY=F futures in mid-August 2021, the historical rate is set to the contemporaneous 2-Year Constant Maturity Treasury yield (about 0.15%). In the live series, the forward price F is not assumed but read from the options themselves via put-call parity (F = K + e<sup>rT</sup>(C &minus; P) at near-the-money strikes), so expected dividends and borrowing costs come from the market. In the historical series, F = S<sub>0</sub>e<sup>(r&minus;q)T</sup> with q equal to each ticker's trailing 12-month dividend yield.
         </p>
         <div class="formula-card">
             <img src="explain2.svg" alt="Dynamic Risk Free Rate and Forward Price Formulation" />
         </div>
 
-        <h4>4. Volatility Estimation: Historical Monthly Proxy vs. Live LEAPS Regime</h4>
+        <h4>4. Live Series: Probabilities Read From Put Prices</h4>
         <p>
-            Because public historical financial APIs do not store end-of-day option chains, the dataset combines two distinct analytical regimes:
+            Each trading day, for the listed option expiries on either side of two years, the engine takes bid/ask midpoint prices of out-of-the-money puts and calls, converts each to an implied volatility, and fits a smooth volatility smile &sigma;(k) in log-moneyness k = ln(K/F). The two smiles are interpolated in total implied variance (&sigma;<sup>2</sup>T) to exactly T = 2 years. When no listed option reaches two years (newly listed stocks), the longest usable smile is extended by holding it fixed in standardized moneyness k/&radic;T; these rows are flagged.
         </p>
-        <ul>
-            <li>
-                <strong>Historical Monthly Series (January 2021 &ndash; September 2026):</strong> Sampled on the 15th of each month. Historical realized volatility is computed over a rolling 63-trading-day window (~3 months). Because option markets persistently trade at a premium to realized volatility, the ATM implied volatility proxy is scaled by an empirical Volatility Risk Premium factor (VRP = 1.12).
-            </li>
-            <li>
-                <strong>Live Daily Tracking (Starting October 2026 Onward):</strong> Evaluated each trading day after market close. The engine queries active LEAPS options chains from Yahoo Finance, extracting at-the-money implied volatility from liquid calls and puts.
-            </li>
-        </ul>
         <div class="formula-card">
-            <img src="explain3.svg" alt="Volatility Estimation Across Regimes" />
+            <img src="explain3.svg" alt="Volatility smile construction" />
         </div>
 
-        <h4>5. Downside Skew Modeling</h4>
+        <h4>5. Risk-Neutral Tail Probability Q(S &le; K)</h4>
         <p>
-            Deep out-of-the-money puts trade at an implied volatility premium over ATM options (the volatility smile/skew). Rather than attempting to fit noisy or illiquid deep-OTM put contracts directly, the model scales the liquid ATM baseline by an empirical downside skew factor of 1.18 to determine the wing volatility (&sigma;<sub>wing</sub>) for the 50% drawdown strike.
+            The probability comes from the Breeden&ndash;Litzenberger relation: the slope of the put price with respect to the strike is the discounted probability of finishing below that strike. Evaluated on the fitted smile at K = 0.5 &times; S<sub>0</sub>, this captures the full downside skew. Plugging a single volatility into the Black-Scholes N(&minus;d<sub>2</sub>) would not: using at-the-money volatility understates the tail, and using the volatility at the 50% strike overstates it, because it ignores how fast volatility changes across strikes. Q reflects the market price of crash insurance and so includes investors' risk aversion; it is not a forecast of real-world frequency.
         </p>
         <div class="formula-card">
-            <img src="explain4.svg" alt="Downside Wing Volatility Modeling" />
+            <img src="explain4.svg" alt="Breeden-Litzenberger probability" />
         </div>
 
-        <h4>6. Risk-Neutral Tail Probability Q(S &le; K)</h4>
+        <h4>6. Historical Series: Realized Volatility Calibrated to the Live Method</h4>
         <p>
-            The risk-neutral probability Q reflects the market price of downside catastrophe insurance embedded in option contracts. Evaluated via the Black-Scholes lognormal tail cumulative distribution function N(&minus;d<sub>2</sub>), Q incorporates investors' risk aversion and appetite for portfolio insurance without assuming expected positive stock price appreciation. Probabilities are reported directly without artificial floors.
+            Free data sources do not store historical option chains, so history is estimated from each stock's own price movements and then calibrated to the live series. Because two-year option volatility moves far less than short-run volatility, the proxy blends recent and long-run realized variance (30% weight on 63 trading days, 70% on 504 trading days, consistent with volatility reverting with a half-life of roughly six months). Each live day records &sigma;<sub>eff</sub>, the single volatility that reproduces that day's option-implied probability; a per-ticker multiplier, the median ratio of &sigma;<sub>eff</sub> to the proxy over the live period, scales the entire history so that the two series meet at the seam. The multiplier captures each ticker's volatility risk premium and put skew, treated as constant over time. The historical series is sampled on the 15th of each month, then daily from October 2026 until live option data begins (marked on the chart). Recently listed stocks (SPCX, ANT) have too little trading history and begin with the live data.
         </p>
         <div class="formula-card">
-            <img src="explain5.svg" alt="Risk-Neutral Tail Probability Evaluation" />
+            <img src="explain5.svg" alt="Historical calibration" />
         </div>
 
         <h4>7. Physical Probability Scenario P(S &le; K) with CAPM Drift</h4>
         <p>
-            The physical column P represents an analytical scenario combining the lognormal tail framework with positive expected equity drift (&mu;) derived from the Capital Asset Pricing Model (&mu; = r + &beta; &times; ERP &minus; q, with an Equity Risk Premium of 4.5%). Because equities have expected positive drift over a 2-year holding period, this drift provides a statistical buffer that places P substantially below the market-implied hedging probability Q across all assets.
+            The physical column P is a scenario that keeps the shape of the market-implied distribution but replaces the risk-free growth rate with a CAPM expected return (&mu; = r + &beta; &times; ERP &minus; q, with an Equity Risk Premium of 4.5%). Shifting the distribution up by &beta; &times; ERP per year is equivalent to evaluating Q at the lower strike K&middot;e<sup>&minus;&beta;&middot;ERP&middot;T</sup>. Because it retains the risk-neutral skew, P is still likely to overstate the real-world probability.
         </p>
         <div class="formula-card">
             <img src="explain6.svg" alt="Physical Tail Probability Evaluation with CAPM Drift" />
@@ -157,8 +152,26 @@
     <script>
         const chartData = {{ chart_json | safe }};
         const ctx = document.getElementById('historyChart').getContext('2d');
+        const liveStartMarker = {
+            id: 'liveStartMarker',
+            afterDatasetsDraw(chart) {
+                if (!chartData.liveStart) return;
+                const idx = chartData.labels.indexOf(chartData.liveStart);
+                if (idx < 0) return;
+                const x = chart.scales.x.getPixelForValue(idx);
+                const { top, bottom } = chart.chartArea;
+                const c = chart.ctx;
+                c.save();
+                c.strokeStyle = '#94a3b8'; c.setLineDash([5, 4]); c.lineWidth = 1;
+                c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
+                c.setLineDash([]); c.fillStyle = '#475569'; c.font = '11px sans-serif'; c.textAlign = 'right';
+                c.fillText('calibrated history | option prices →', x - 4, top + 12);
+                c.restore();
+            }
+        };
         new Chart(ctx, {
             type: 'line',
+            plugins: [liveStartMarker],
             data: chartData,
             options: {
                 responsive: true,
