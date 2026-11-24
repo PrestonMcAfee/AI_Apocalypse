@@ -1,10 +1,11 @@
 name: Daily Drawdown Probability Update
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'index.html'
   schedule:
-    # Runs hourly at :19 past the hour from 14:00 to 23:00 UTC (9:19 AM - 6:19 PM ET) Mon-Fri.
-    # Once all 12 tickers pass validation for the current US/Eastern trading day,
-    # build_site.py exits immediately on subsequent ticks until the next morning.
     - cron: '19 14-23 * * 1-5'
   workflow_dispatch:
 
