@@ -36,7 +36,18 @@ jobs:
       - name: Run probability calculations
         run: python build_site.py
 
+      - name: Check if site was updated
+        id: site_check
+        run: |
+          if git diff --quiet index.html && git diff --quiet history.csv; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "No valid market update produced (overnight/stale quotes or today already complete). Skipping deploy."
+          else
+            echo "updated=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit and push updated history.csv
+        if: steps.site_check.outputs.updated == 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
@@ -48,13 +59,22 @@ jobs:
           fi
 
       - name: Setup Pages
+        if: steps.site_check.outputs.updated == 'true'
         uses: actions/configure-pages@v5
 
+      - name: Package site artifact
+        if: steps.site_check.outputs.updated == 'true'
+        run: tar --exclude='.git' --exclude='.github' -cvf /tmp/artifact.tar .
+
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        if: steps.site_check.outputs.updated == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          path: '.'
+          name: github-pages
+          path: /tmp/artifact.tar
+          retention-days: 1
 
       - name: Deploy to GitHub Pages
+        if: steps.site_check.outputs.updated == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
