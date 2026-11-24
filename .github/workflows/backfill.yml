@@ -1,9 +1,14 @@
 name: Recalibrate Historical Backfill
 
-# Manual only. Recomputes the realized-volatility history, calibrated to the
-# live option-based rows already in history.csv, then rebuilds the site.
+# Recomputes the realized-volatility history for both metrics, calibrated to
+# the live option-based rows already recorded, then rebuilds the site.
+# Runs on demand, and on Dec 1 and Dec 8, 2026 at 22:43 UTC (2:43pm PST),
+# after that day's live snapshot. To make the December runs annual, delete
+# the year check in the "check" job.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '43 22 1,8 12 *'
 
 permissions:
   contents: write
@@ -15,7 +20,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.guard.outputs.go }}
+    steps:
+      - id: guard
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%Y)" = "2026" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          fi
+
   backfill-and-deploy:
+    needs: check
+    if: needs.check.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -30,20 +50,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Record today's option-based snapshot (needed for calibration)
+      - name: Record today's option-based snapshot (kept only if at least as clean as today's best)
+        env:
+          FORCE_RUN: '1'
         run: python build_site.py
 
       - name: Recalibrate and rewrite history
         run: python backfill_history.py
 
       - name: Rebuild site with recalibrated history
-        run: python build_site.py
+        run: python build_site.py --render-only
 
       - name: Commit and push updated history files
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          for f in history.csv history52.csv skew_curve.csv; do [ -f "$f" ] && git add "$f"; done
+          for f in history.csv history52.csv skew_curve.csv last_run.json; do [ -f "$f" ] && git add "$f"; done
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: recalibrate historical backfill [skip ci]" && git push)
 
       - name: Setup Pages

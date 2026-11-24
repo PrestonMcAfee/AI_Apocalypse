@@ -1,8 +1,14 @@
 name: Daily Drawdown Probability Update
 
+# Up to four attempts each weekday afternoon, while option quotes are live.
+# Times are UTC: 18:07-21:07 = 1:07-4:07pm EST (2:07-5:07pm EDT in summer).
+# build_site.py exits immediately once the day has a complete run, so in
+# practice the first attempt does the work and the rest are cheap retries.
+# A later run can never overwrite an earlier, cleaner snapshot for the day.
+# Manual "Run workflow" forces a fresh calculation (same no-downgrade rule).
 on:
   schedule:
-    - cron: '19 14-21 * * 1-5'
+    - cron: '7 18-21 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -31,23 +37,30 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run probability calculations
+        id: build
+        env:
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
         run: python build_site.py
 
       - name: Commit and push updated history files
+        if: steps.build.outputs.updated == 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          for f in history.csv history52.csv skew_curve.csv; do [ -f "$f" ] && git add "$f"; done
+          for f in history.csv history52.csv skew_curve.csv last_run.json; do [ -f "$f" ] && git add "$f"; done
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: record daily probability snapshot [skip ci]" && git push)
 
       - name: Setup Pages
+        if: steps.build.outputs.updated == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
+        if: steps.build.outputs.updated == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
 
       - name: Deploy to GitHub Pages
+        if: steps.build.outputs.updated == 'true'
         id: deployment
         uses: actions/deploy-pages@v4

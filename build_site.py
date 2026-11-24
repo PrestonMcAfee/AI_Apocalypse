@@ -15,6 +15,7 @@ Method (risk-neutral, from option prices):
      this accounts for the slope of the smile (skew).
 """
 import os
+import sys
 import json
 import math
 from datetime import datetime, date
@@ -34,7 +35,8 @@ TICKERS = [
 OUTPUT_FILE = "index.html"
 HISTORY_FILE = "history.csv"          # 50% of current price
 HISTORY52_FILE = "history52.csv"      # 50% of 52-week high
-SKEW_FILE = "skew_curve.csv"          # effective vol by moneyness (calibrates the backfill)
+SKEW_FILE = "skew_curve.csv"
+LAST_RUN_FILE = "last_run.json"       # quality of the best run for the latest market date          # effective vol by moneyness (calibrates the backfill)
 SKEW_GRID = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]   # K / spot
 TEMPLATE_FILE = "template.html"
 HORIZON_YEARS = 2.0
@@ -420,6 +422,7 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
         "prob_P52": prob_P52,
         "skew": skew,
         "no_options": False,
+        "used_last": surf["used_last"],
         "is_fallback": surf["extrapolated"] or surf["used_last"],
         "flag_note": "; ".join(filter(None, [
             f"longest listed expiry is {surf['max_listed_T']:.2f}y, extrapolated to 2y" if surf["extrapolated"] else "",
@@ -525,13 +528,71 @@ def render_site(table_rows, chart_payload_json, chart52_payload_json, market_dat
         f.write(rendered)
 
 
-if __name__ == "__main__":
+def set_output(name, value):
+    """Tell the GitHub workflow whether later steps (commit, deploy) should run."""
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a") as f:
+            f.write(f"{name}={value}\n")
+
+
+def load_last_run():
+    try:
+        with open(LAST_RUN_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _jsonable(x):
+    if isinstance(x, (np.floating, np.integer)):
+        return x.item()
+    if isinstance(x, np.bool_):
+        return bool(x)
+    raise TypeError(type(x))
+
+
+def render_from_saved():
+    """Rebuild index.html from the CSVs and the table rows saved by the best run."""
+    last = load_last_run()
+    rows = last.get("rows")
+    if not rows:
+        print("No saved run to render from.")
+        return False
+    h = pd.read_csv(HISTORY_FILE)
+    h52 = pd.read_csv(HISTORY52_FILE) if os.path.exists(HISTORY52_FILE) else h.iloc[0:0]
+    render_site(rows, format_chart_payload(h), format_chart_payload(h52, "Q(S <= 50% of high)"),
+                pd.Timestamp(last["market_date"]).date())
+    print(f"Rendered {OUTPUT_FILE} from saved run of {last['market_date']}.")
+    return True
+
+
+def main():
+    """
+    Run at most once successfully per trading day.
+    - If a complete run (every ticker with listed options priced from live
+      bid/ask quotes) already exists for this market date, exit without changes.
+    - Otherwise compute, and write only if this run is at least as good as
+      the best earlier run for the same date (so a late run with stale
+      after-hours quotes cannot overwrite a good mid-session snapshot).
+    Set FORCE_RUN=1 to skip the first check (the second still applies).
+    """
+    if "--render-only" in sys.argv:
+        set_output("updated", "true" if render_from_saved() else "false")
+        return
+    force = os.environ.get("FORCE_RUN", "").lower() in ("1", "true", "yes")
     market_date = get_market_date()
     date_str = market_date.strftime("%Y-%m-%d")
+    last = load_last_run()
+    if not force and last.get("market_date") == date_str and last.get("complete"):
+        print(f"Already have a complete run for {date_str}; nothing to do.")
+        set_output("updated", "false")
+        return
+
     current_r = get_current_2y_treasury_rate()
     print(f"Market date: {date_str} | 2-Year rate: {current_r * 100:.2f}%\n")
 
-    results = []
+    results, n_errors = [], 0
     for ticker in TICKERS:
         try:
             data = compute_half_drawdown_stats(ticker, market_date, r=current_r)
@@ -544,12 +605,39 @@ if __name__ == "__main__":
                       f"ATM={data['atm_iv']:.1%}, IV@K={data['wing_iv']:.1%}, "
                       f"Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}% | "
                       f"52wH=${data['high_52w']:.2f}, Q52={data['prob_Q52']*100:5.2f}%{note}")
+            else:
+                n_errors += 1
         except Exception as e:
+            n_errors += 1
             print(f"Failed processing {ticker}: {e}")
 
-    if any(not r.get("no_options") for r in results):
-        hist_df, hist52_df = update_history_files(date_str, results)
-        render_site(results, format_chart_payload(hist_df), format_chart_payload(hist52_df, "Q(S <= 50% of high)"), market_date)
-        print(f"\nSuccessfully wrote {OUTPUT_FILE}, {HISTORY_FILE}, {HISTORY52_FILE}, {SKEW_FILE}.")
-    else:
-        print("\nNo results gathered. File not updated.")
+    priced = [r for r in results if not r.get("no_options")]
+    n_clean = sum(1 for r in priced if not r.get("used_last"))
+    complete = n_errors == 0 and n_clean == len(priced) and len(priced) > 0
+    print(f"\nQuality: {n_clean}/{len(priced)} tickers priced from live quotes, {n_errors} errors"
+          f" -> {'complete' if complete else 'INCOMPLETE (a later scheduled run will retry)'}")
+
+    if not priced:
+        print("No results gathered. Files not updated.")
+        set_output("updated", "false")
+        return
+    if last.get("market_date") == date_str and n_clean < last.get("n_clean", 0):
+        print(f"An earlier run today had better data ({last['n_clean']} clean tickers); keeping it.")
+        set_output("updated", "false")
+        return
+
+    hist_df, hist52_df = update_history_files(date_str, results)
+    render_site(results, format_chart_payload(hist_df),
+                format_chart_payload(hist52_df, "Q(S <= 50% of high)"), market_date)
+    with open(LAST_RUN_FILE, "w") as f:
+        json.dump({"market_date": date_str, "n_clean": n_clean, "n_priced": len(priced),
+                   "n_errors": n_errors, "complete": complete,
+                   "run_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+                   "rows": [{k: v for k, v in r.items() if k != "skew"} for r in results]},
+                  f, indent=1, default=_jsonable)
+    set_output("updated", "true")
+    print(f"Wrote {OUTPUT_FILE}, {HISTORY_FILE}, {HISTORY52_FILE}, {SKEW_FILE}.")
+
+
+if __name__ == "__main__":
+    main()
