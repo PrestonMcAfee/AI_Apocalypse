@@ -144,8 +144,40 @@
 
         <h4>8. Alternative Metric: Fall Off 52 Week High</h4>
         <p>
-            One conceptual flaw -- or challenge -- in the metric is that, if a share price fell 50%, the likelihood of a further 50% fall might be quite low, when we might want to score that as a bubble burst.  The chart as given provides the likelihood of a further drop, and assuming efficient markets (which <a href="https://en.wikipedia.org/wiki/Efficient-market_hypothesis#Empirical_studies" target ="_blank">you should not</a>), the current price summarizes all known information, so the present metric would be a sensible summary of the likelihood of a bursting bubble.  If, instead, we want to assess the probability that the bubble will or has burst, a more sensible metric is the probability of a 50% fall from the peak.  Using the same methodology already described, but with the target share price being half of the 52 week high, you can see the output of that computation at <a href="index52.html" target="_blank">here</a>.  That chart looks so similar -- just scaled up -- that it gave me comfort that the existing metric is reasonable.  If you are mostly thinking "Are my existing investments safe-ish?", you would use the current price as a target, while if you are asking "Are we in the middle of a meltdown?", judging based on the 52 week high makes more sense.  The python code I used for the 52 week high is <a href="backfill_history52.py" target="_blank">here</a>.
+            One conceptual flaw -- or challenge -- in the metric is that, if a share price fell 50%, the likelihood of a further 50% fall might be quite low, when we might want to score that as a bubble burst.  The chart as given provides the likelihood of a further drop, and assuming efficient markets (which <a href="https://en.wikipedia.org/wiki/Efficient-market_hypothesis#Empirical_studies" target ="_blank">you should not</a>), the current price summarizes all known information, so the present metric would be a sensible summary of the likelihood of a bursting bubble.  If, instead, we want to assess the probability that the bubble will or has burst, a more sensible metric is the probability of a 50% fall from the peak.  Using the same methodology already described, but with the target share price being half of the 52 week high, you can see the output of that computation in the chart below.  If you are mostly thinking "Are my existing investments safe-ish?", you would use the current price as a target, while if you are asking "Are we in the middle of a meltdown?", judging based on the 52 week high makes more sense.  Both metrics are computed by the same code (<a href="build_site.py" target="_blank">build_site.py</a> daily, <a href="backfill_history.py" target="_blank">backfill_history.py</a> for history).
         </p>
+        <p>
+            Live values come from the same option smile as the main chart, evaluated at K = 0.5 &times; (52-week high). For history, the effective volatility at that strike is adjusted for skew: live runs record the effective volatility at strikes from 30% to 90% of spot, and the backfill uses each ticker's ratio of effective volatility at K/S to that at 50%. When a stock is already more than 50% below its high, the probability exceeds 50%. For stocks listed less than a year ago, the "52-week high" is the high since listing.
+        </p>
+        <div class="chart-card">
+            <canvas id="history52Chart" style="height: 600px;"></canvas>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Spot Price</th>
+                    <th>52-Week High</th>
+                    <th>Off High</th>
+                    <th>Strike (&frac12; High)</th>
+                    <th>Risk-Neutral Q(S &le; K)</th>
+                    <th>Lognormal + CAPM Drift P(S &le; K)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}{% if not row.no_options %}
+                <tr>
+                    <td><strong>{{ row.ticker }}</strong>{% if row.high_52w_partial %}<span class="fallback-flag" title="Listed less than a year: high since listing">&dagger;</span>{% endif %}</td>
+                    <td>${{ "%.2f"|format(row.spot) }}</td>
+                    <td>${{ "%.2f"|format(row.high_52w) }}</td>
+                    <td>{{ "%.1f"|format(row.drawdown * 100) }}%</td>
+                    <td>${{ "%.2f"|format(row.target_strike52) }}</td>
+                    <td class="highlight">{{ "%.2f"|format(row.prob_Q52 * 100) }}%</td>
+                    <td>{{ "%.2f"|format(row.prob_P52 * 100) }}%</td>
+                </tr>
+                {% endif %}{% endfor %}
+            </tbody>
+        </table>
 
     </div>
 
@@ -155,12 +187,13 @@
 
     <script>
         const chartData = {{ chart_json | safe }};
-        const ctx = document.getElementById('historyChart').getContext('2d');
+        const chart52Data = {{ chart52_json | safe }};
         const liveStartMarker = {
             id: 'liveStartMarker',
             afterDatasetsDraw(chart) {
-                if (!chartData.liveStart) return;
-                const idx = chartData.labels.indexOf(chartData.liveStart);
+                const d = chart.data;
+                if (!d.liveStart) return;
+                const idx = d.labels.indexOf(d.liveStart);
                 if (idx < 0) return;
                 const x = chart.scales.x.getPixelForValue(idx);
                 const { top, bottom } = chart.chartArea;
@@ -169,38 +202,40 @@
                 c.strokeStyle = '#94a3b8'; c.setLineDash([5, 4]); c.lineWidth = 1;
                 c.beginPath(); c.moveTo(x, top); c.lineTo(x, bottom); c.stroke();
                 c.setLineDash([]); c.fillStyle = '#475569'; c.font = '11px sans-serif'; c.textAlign = 'right';
-                c.fillText('calibrated history | option prices →', x - 4, top + 12);
+                c.fillText('calibrated history | option prices \u2192', x - 4, top + 12);
                 c.restore();
             }
         };
-        new Chart(ctx, {
-            type: 'line',
-            plugins: [liveStartMarker],
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+        function drawChart(canvasId, data, yTitle) {
+            new Chart(document.getElementById(canvasId).getContext('2d'), {
+                type: 'line',
+                plugins: [liveStartMarker],
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + '%'
                             }
                         }
-                    }
-                },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: {
-                        title: { display: true, text: 'Risk-Neutral Probability (%)' },
-                        ticks: { callback: v => v + '%' },
-                        suggestedMin: 0
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            title: { display: true, text: yTitle },
+                            ticks: { callback: v => v + '%' },
+                            suggestedMin: 0
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
+        drawChart('historyChart', chartData, 'Risk-Neutral Probability (%), 50% of Current Price');
+        drawChart('history52Chart', chart52Data, 'Risk-Neutral Probability (%), 50% of 52-Week High');
     </script>
 </body>
 </html>

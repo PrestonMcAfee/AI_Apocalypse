@@ -32,7 +32,10 @@ TICKERS = [
     "META", "TSLA", "SPCX", "ANT", "SPY", "QQQ", "DIA"
 ]
 OUTPUT_FILE = "index.html"
-HISTORY_FILE = "history.csv"
+HISTORY_FILE = "history.csv"          # 50% of current price
+HISTORY52_FILE = "history52.csv"      # 50% of 52-week high
+SKEW_FILE = "skew_curve.csv"          # effective vol by moneyness (calibrates the backfill)
+SKEW_GRID = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]   # K / spot
 TEMPLATE_FILE = "template.html"
 HORIZON_YEARS = 2.0
 DEFAULT_RISK_FREE_RATE = 0.039   # Fallback ~2-year Treasury yield
@@ -76,6 +79,17 @@ def get_market_date():
     except Exception as e:
         print(f"Warning: Could not determine market date ({e}).")
     return pd.Timestamp.now(tz="America/New_York").date()
+
+
+def get_52w_high(tk, spot):
+    """Highest intraday high over the past year (split-adjusted, not dividend-adjusted)."""
+    try:
+        hist = tk.history(period="1y", auto_adjust=False)
+        if not hist.empty:
+            return max(float(hist["High"].max()), spot), len(hist)
+    except Exception as e:
+        print(f"    52-week high unavailable ({e})")
+    return spot, 0
 
 
 def get_spot(tk):
@@ -361,14 +375,30 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
                 "no_options": True, "is_fallback": False, "flag_note": ""}
 
     F, T, sigma_at = surf["F"], surf["T"], surf["sigma_at"]
-    prob_Q = bl_prob_below(F, K, T, r, sigma_at)
+    beta = get_beta(tk, ticker_symbol)
 
     # Physical scenario: same market-implied distribution shape, shifted so the
     # expected return is CAPM (r + beta*ERP) instead of the risk-free carry.
     # P(S_T <= K) = Q(S_T <= K * exp(-beta*ERP*T)).
-    beta = get_beta(tk, ticker_symbol)
-    K_phys = K * math.exp(-beta * EQUITY_RISK_PREMIUM * T)
-    prob_P = bl_prob_below(F, K_phys, T, r, sigma_at)
+    phys_shift = math.exp(-beta * EQUITY_RISK_PREMIUM * T)
+
+    prob_Q = bl_prob_below(F, K, T, r, sigma_at)
+    prob_P = bl_prob_below(F, K * phys_shift, T, r, sigma_at)
+
+    # Alternative metric: finish at or below half of the 52-week high
+    high_52w, n_days_52 = get_52w_high(tk, spot)
+    K52 = high_52w / 2.0
+    prob_Q52 = bl_prob_below(F, K52, T, r, sigma_at)
+    prob_P52 = bl_prob_below(F, K52 * phys_shift, T, r, sigma_at)
+
+    # Effective lognormal vol at several strikes, so the backfill can reproduce
+    # the skew when the 52-week strike is not at 50% of spot.
+    skew = []
+    for m in SKEW_GRID:
+        Km = m * spot
+        se = effective_sigma(F, Km, T, bl_prob_below(F, Km, T, r, sigma_at))
+        if np.isfinite(se):
+            skew.append((m, se))
 
     target_dt = market_date + pd.Timedelta(days=int(T * 365.25))
     return {
@@ -382,6 +412,13 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
         "sigma_eff": effective_sigma(F, K, T, prob_Q),
         "prob_Q": prob_Q,
         "prob_P": prob_P,
+        "high_52w": high_52w,
+        "high_52w_partial": n_days_52 < 240,
+        "target_strike52": round(K52, 2),
+        "drawdown": spot / high_52w - 1.0,
+        "prob_Q52": prob_Q52,
+        "prob_P52": prob_P52,
+        "skew": skew,
         "no_options": False,
         "is_fallback": surf["extrapolated"] or surf["used_last"],
         "flag_note": "; ".join(filter(None, [
@@ -394,32 +431,46 @@ def compute_half_drawdown_stats(ticker_symbol, market_date, r=DEFAULT_RISK_FREE_
 # ---------------------------------------------------------------------------
 # History, chart, site
 # ---------------------------------------------------------------------------
-def update_history_csv(date_str, results):
-    rows = [{
-        "date": date_str,
-        "ticker": res["ticker"],
-        "spot": round(res["spot"], 2),
-        "target_strike": round(res["target_strike"], 2),
-        "prob_Q": round(res["prob_Q"] * 100, 2),
-        "prob_P": round(res["prob_P"] * 100, 2),
-        "sigma_eff": round(res["sigma_eff"], 4) if np.isfinite(res["sigma_eff"]) else np.nan,
-        "method": "options",
-    } for res in results if not res.get("no_options")]
-
-    new_df = pd.DataFrame(rows)
-    if os.path.exists(HISTORY_FILE) and os.path.getsize(HISTORY_FILE) > 0:
-        existing_df = pd.read_csv(HISTORY_FILE)
-        existing_df = existing_df.dropna(subset=["date", "ticker", "prob_Q"])
-        # Replace only the tickers we have fresh results for on this date
-        mask = (existing_df["date"] == date_str) & existing_df["ticker"].isin(new_df["ticker"])
-        combined_df = pd.concat([existing_df[~mask], new_df], ignore_index=True)
+def upsert_csv(path, new_df, keys):
+    """Replace rows matching (keys) in new_df, keep everything else, sort, save."""
+    if new_df.empty:
+        return pd.read_csv(path) if os.path.exists(path) else new_df
+    if os.path.exists(path) and os.path.getsize(path) > 0:
+        existing = pd.read_csv(path)
+        merged = existing.merge(new_df[keys], on=keys, how="left", indicator=True)
+        existing = existing[(merged["_merge"] == "left_only").values]
+        combined = pd.concat([existing, new_df], ignore_index=True)
     else:
-        combined_df = new_df
+        combined = new_df
+    combined = combined.drop_duplicates(subset=keys, keep="last")
+    combined = combined.sort_values(by=keys).reset_index(drop=True)
+    combined.to_csv(path, index=False)
+    return combined
 
-    combined_df = combined_df.drop_duplicates(subset=["date", "ticker"], keep="last")
-    combined_df = combined_df.sort_values(by=["date", "ticker"]).reset_index(drop=True)
-    combined_df.to_csv(HISTORY_FILE, index=False)
-    return combined_df
+
+def _r(x, n):
+    return round(float(x), n) if x is not None and np.isfinite(x) else np.nan
+
+
+def update_history_files(date_str, results):
+    live = [res for res in results if not res.get("no_options")]
+    h = upsert_csv(HISTORY_FILE, pd.DataFrame([{
+        "date": date_str, "ticker": res["ticker"],
+        "spot": _r(res["spot"], 2), "target_strike": _r(res["target_strike"], 2),
+        "prob_Q": _r(res["prob_Q"] * 100, 2), "prob_P": _r(res["prob_P"] * 100, 2),
+        "sigma_eff": _r(res["sigma_eff"], 4), "method": "options",
+    } for res in live]), ["date", "ticker"])
+    h52 = upsert_csv(HISTORY52_FILE, pd.DataFrame([{
+        "date": date_str, "ticker": res["ticker"],
+        "spot": _r(res["spot"], 2), "high_52w": _r(res["high_52w"], 2),
+        "target_strike": _r(res["target_strike52"], 2),
+        "prob_Q": _r(res["prob_Q52"] * 100, 2), "prob_P": _r(res["prob_P52"] * 100, 2),
+        "method": "options",
+    } for res in live]), ["date", "ticker"])
+    upsert_csv(SKEW_FILE, pd.DataFrame([{
+        "date": date_str, "ticker": res["ticker"], "moneyness": m, "sigma_eff": _r(se, 4),
+    } for res in live for m, se in res["skew"]]), ["date", "ticker", "moneyness"])
+    return h, h52
 
 
 PALETTE = {
@@ -429,7 +480,7 @@ PALETTE = {
 }
 
 
-def format_chart_payload(history_df):
+def format_chart_payload(history_df, label_suffix="Q(S <= 50%)"):
     valid_df = history_df.dropna(subset=["date", "ticker", "prob_Q"]).copy()
     unique_dates = sorted(valid_df["date"].unique().tolist())
 
@@ -446,7 +497,7 @@ def format_chart_payload(history_df):
         series = [None if pd.isna(v) else float(v) for v in series]
         color = PALETTE.get(ticker, "#666666")
         datasets.append({
-            "label": f"{ticker} Q(S <= 50%)",
+            "label": f"{ticker} {label_suffix}",
             "data": series,
             "borderColor": color,
             "backgroundColor": color,
@@ -460,12 +511,13 @@ def format_chart_payload(history_df):
     return json.dumps({"labels": unique_dates, "datasets": datasets, "liveStart": live_start})
 
 
-def render_site(table_rows, chart_payload_json, market_date):
+def render_site(table_rows, chart_payload_json, chart52_payload_json, market_date):
     with open(TEMPLATE_FILE, "r") as f:
         template = jinja2.Template(f.read())
     rendered = template.render(
         rows=table_rows,
         chart_json=chart_payload_json,
+        chart52_json=chart52_payload_json,
         market_date=market_date.strftime("%Y-%m-%d"),
         timestamp=datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
     )
@@ -490,13 +542,14 @@ if __name__ == "__main__":
                 note = f" [{data['flag_note']}]" if data["flag_note"] else ""
                 print(f"Processed {ticker:4s}: Spot=${data['spot']:8.2f}, Exp={data['source_exp']}, "
                       f"ATM={data['atm_iv']:.1%}, IV@K={data['wing_iv']:.1%}, "
-                      f"Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}%{note}")
+                      f"Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}% | "
+                      f"52wH=${data['high_52w']:.2f}, Q52={data['prob_Q52']*100:5.2f}%{note}")
         except Exception as e:
             print(f"Failed processing {ticker}: {e}")
 
     if any(not r.get("no_options") for r in results):
-        hist_df = update_history_csv(date_str, results)
-        render_site(results, format_chart_payload(hist_df), market_date)
-        print(f"\nSuccessfully wrote {OUTPUT_FILE} and updated {HISTORY_FILE}.")
+        hist_df, hist52_df = update_history_files(date_str, results)
+        render_site(results, format_chart_payload(hist_df), format_chart_payload(hist52_df, "Q(S <= 50% of high)"), market_date)
+        print(f"\nSuccessfully wrote {OUTPUT_FILE}, {HISTORY_FILE}, {HISTORY52_FILE}, {SKEW_FILE}.")
     else:
         print("\nNo results gathered. File not updated.")
