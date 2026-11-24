@@ -17,6 +17,7 @@ HISTORY_FILE = "history.csv"
 TEMPLATE_FILE = "template.html"
 HORIZON_YEARS = 2.0  # Constant 2-year forward window
 DEFAULT_RISK_FREE_RATE = 0.039  # Fallback ~2-year Treasury yield
+VRP_MULTIPLIER = 1.12
 
 def get_current_2y_treasury_rate(default_rate=DEFAULT_RISK_FREE_RATE):
     """Fetches the latest active 2-Year US Treasury yield (Yahoo ticker: 2YY=F)."""
@@ -36,39 +37,59 @@ def get_current_2y_treasury_rate(default_rate=DEFAULT_RISK_FREE_RATE):
         print(f"Warning: Could not fetch dynamic 2Y rate ({e}). Using default {default_rate:.3f}.")
     return default_rate
 
+def get_realized_vol_proxy(tk):
+    """Computes 63-day annualized realized volatility scaled by VRP as a clean fallback."""
+    try:
+        hist = tk.history(period="6mo")
+        if len(hist) >= 30:
+            log_ret = np.log(hist["Close"] / hist["Close"].shift(1)).dropna()
+            rv = float(log_ret.tail(63).std() * np.sqrt(252))
+            if rv > 0.05:
+                return rv * VRP_MULTIPLIER
+    except Exception:
+        pass
+    return 0.35
+
 def get_atm_volatility(tk, spot):
     """
     Extracts liquid ATM implied volatility from the furthest available reliable chain.
-    Also returns the actual expiration date and day count to avoid unmeasured maturity distortion.
+    Guards against after-hours Yahoo Finance IV resets (where stale chains report ~0.05-0.08 IV)
+    by requiring plausible LEAPS IV (> 0.10) and falling back to 63d realized vol * VRP.
     """
     try:
         exps = tk.options
         if not exps:
-            return 0.35, None, False
+            return get_realized_vol_proxy(tk), None, True
 
-        target_exp = exps[-1]
-        chain = tk.option_chain(target_exp)
+        # Check up to the two furthest expirations in case the furthest LEAPS chain has stale quotes
+        for target_exp in reversed(exps[-2:]):
+            chain = tk.option_chain(target_exp)
+            calls = chain.calls.dropna(subset=['strike', 'impliedVolatility'])
+            puts = chain.puts.dropna(subset=['strike', 'impliedVolatility'])
 
-        calls = chain.calls.dropna(subset=['strike', 'impliedVolatility'])
-        puts = chain.puts.dropna(subset=['strike', 'impliedVolatility'])
+            # Filter out overnight Yahoo Finance zero/reset quotes (< 10% IV) and extreme outliers (> 150%)
+            calls = calls[(calls['impliedVolatility'] > 0.10) & (calls['impliedVolatility'] < 1.50)]
+            puts = puts[(puts['impliedVolatility'] > 0.10) & (puts['impliedVolatility'] < 1.50)]
 
-        calls = calls[(calls['impliedVolatility'] > 0.05) & (calls['impliedVolatility'] < 1.20)]
-        puts = puts[(puts['impliedVolatility'] > 0.05) & (puts['impliedVolatility'] < 1.20)]
+            # Keep strikes within 20% of spot so illiquid far-OTM strikes aren't mistaken for ATM
+            calls = calls[(calls['strike'] >= spot * 0.80) & (calls['strike'] <= spot * 1.20)]
+            puts = puts[(puts['strike'] >= spot * 0.80) & (puts['strike'] <= spot * 1.20)]
 
-        c_atm = calls.iloc[(calls['strike'] - spot).abs().argsort()[:2]] if not calls.empty else None
-        p_atm = puts.iloc[(puts['strike'] - spot).abs().argsort()[:2]] if not puts.empty else None
+            c_atm = calls.iloc[(calls['strike'] - spot).abs().argsort()[:2]] if not calls.empty else None
+            p_atm = puts.iloc[(puts['strike'] - spot).abs().argsort()[:2]] if not puts.empty else None
 
-        vols = []
-        if c_atm is not None and not c_atm.empty:
-            vols.extend(c_atm['impliedVolatility'].tolist())
-        if p_atm is not None and not p_atm.empty:
-            vols.extend(p_atm['impliedVolatility'].tolist())
+            vols = []
+            if c_atm is not None and not c_atm.empty:
+                vols.extend(c_atm['impliedVolatility'].tolist())
+            if p_atm is not None and not p_atm.empty:
+                vols.extend(p_atm['impliedVolatility'].tolist())
 
-        if vols:
-            return float(np.median(vols)), target_exp, False
-        return 0.35, target_exp, True
+            if vols:
+                return float(np.median(vols)), target_exp, False
+
+        return get_realized_vol_proxy(tk), exps[-1], True
     except Exception:
-        return 0.35, None, True
+        return get_realized_vol_proxy(tk), None, True
 
 def compute_half_drawdown_stats(ticker_symbol, r=DEFAULT_RISK_FREE_RATE):
     tk = yf.Ticker(ticker_symbol)
@@ -173,7 +194,7 @@ def format_chart_payload(history_df):
         "META": "#00BFFF",  # Cyan
         "TSLA": "#8A00FF",  # Purple
         "SPCX": "#888888",  # Slate
-        "ANT": "#FF9AFF",  # Light Purple
+        "ANT":  "#FF9AFF",  # Light Purple
         "SPY":  "#b45309",  # Deep Ochre Brown
         "QQQ":  "#00009A",  # Dark Blue
         "DIA":  "#047857"   # Dark Forest Green
@@ -227,8 +248,8 @@ if __name__ == "__main__":
             data = compute_half_drawdown_stats(ticker, r=current_r)
             if data:
                 results.append(data)
-                fb_note = " [FALLBACK]" if data["is_fallback"] else ""
-                print(f"Processed {ticker:4s}: Spot=${data['spot']:7.2f}, Exp={data['source_exp']}, Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}%{fb_note}")
+                fb_note = " [RV-FALLBACK]" if data["is_fallback"] else ""
+                print(f"Processed {ticker:4s}: Spot=${data['spot']:7.2f}, Exp={data['source_exp']}, ATM_IV={data['atm_iv']*100:4.1f}%, Q={data['prob_Q']*100:5.2f}%, P={data['prob_P']*100:5.2f}%{fb_note}")
         except Exception as e:
             print(f"Failed processing {ticker}: {e}")
 
